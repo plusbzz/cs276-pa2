@@ -74,7 +74,8 @@ def scan_corpus(training_corpus_loc,lam = 0.2):
     except ValueError:
       print >> sys.stderr, unigram, unigram_counter[unigram],total_terms
       
-      
+  
+  # Calculate interpolated bigram probability   
   for bigram in bigram_counter:
     w2,w1 = bigram
     bigram_log_prob_dict[bigram] = log(lam*unigram_counter[w2]/total_terms
