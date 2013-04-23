@@ -14,17 +14,6 @@ def serialize_data(data, fname):
   """
   with open(fname, 'wb') as f:
     marshal.dump(data, f)
-
-def unserialize_data(fname):
-  """
-  Reads a pickled data structure from a file named `fname` and returns it
-  IMPORTANT: Only call marshal.load( .. ) on a file that was written to using marshal.dump( .. )
-  marshal has a whole bunch of brittle caveats you can take a look at in teh documentation
-  It is faster than everything else by several orders of magnitude though
-  """
-  with open(fname, 'rb') as f:
-    return marshal.load(f)
-
  
 def read_edit1s():
   """
@@ -54,7 +43,7 @@ def scan_corpus(training_corpus_loc,lam = 0.2):
   for block_fname in iglob( os.path.join( training_corpus_loc, '*.txt' ) ):
     print >> sys.stderr, 'processing dir: ' + block_fname
     with open( block_fname ) as f:
-      words = re.findall(r'\w+', f.read())
+      words = re.findall(r'\w+', f.read().lower())
       print >> sys.stderr, 'Number of words in ' + block_fname + ' is ' + str(len(words))
       
       # Update Unigram counts
@@ -83,9 +72,11 @@ def scan_corpus(training_corpus_loc,lam = 0.2):
    
   
   # Save language models using marshal
-  print >> sys.stderr, "Serializing language models"
+  print >> sys.stderr, "Serializing language models and counters"
   serialize_data(unigram_log_prob_dict,"unigram_language_model.mrshl")
   serialize_data(bigram_log_prob_dict,"bigram_language_model.mrshl")
+  serialize_data(unigram_counter,"unigram_counter.mrshl")
+  serialize_data(bigram_counter,"bigram_counter.mrshl")
 
   return (unigram_log_prob_dict,bigram_log_prob_dict)
 
