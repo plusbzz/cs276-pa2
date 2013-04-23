@@ -1,4 +1,6 @@
 data
+*.mrshl
+
 .DS_Store
 .*.swp
 *~
