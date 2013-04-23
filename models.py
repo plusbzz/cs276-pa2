@@ -83,10 +83,39 @@ def scan_corpus(training_corpus_loc,lam = 0.2):
    
   
   # Save language models using marshal
+  print >> sys.stderr, "Serializing language models"
   serialize_data(unigram_log_prob_dict,"unigram_language_model.mrshl")
   serialize_data(bigram_log_prob_dict,"bigram_language_model.mrshl")
 
   return (unigram_log_prob_dict,bigram_log_prob_dict)
 
+def create_2gram_index(unigram_dict):
+  unigram_index = {}
+  char_bigram_index = {}
+  
+  counter_u = 1
+  for unigram in unigram_dict:
+    unigram_index[counter_u] = unigram
+    
+    char_bigrams = set([(t1+t2) for t1,t2 in zip(unigram[:-1],unigram[1:])])
+  
+    for cb in char_bigrams:
+      if cb not in char_bigram_index:
+        char_bigram_index[cb] = []
+      char_bigram_index[cb].append(counter_u)
+      
+    counter_u += 1
+  
+  print >>sys.stderr,[unigram_index[i]  for i in char_bigram_index['th']]
+  # Save kgram index using marshal
+  print >> sys.stderr, "Serializing character bigram index"
+  serialize_data(unigram_index,"unigram_index.mrshl")
+  serialize_data(char_bigram_index,"char_bigram_index.mrshl")
+  
 if __name__ == '__main__':
-  scan_corpus(sys.argv[1],lam=0.2)
+  u,b = scan_corpus(sys.argv[1],lam=0.2)
+  print  >> sys.stderr,u['the']
+  print  >> sys.stderr,b[('people','the')]
+  
+  create_2gram_index(u)
+  
