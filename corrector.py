@@ -58,9 +58,9 @@ def edit_distance(a,b,cutoff=sys.maxint):
       else:
         d[i][j] = min( [d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + 1] )
         
-      #if i == j and d[i][j] >= cutoff:
-      #  return d[i][j]
-        
+      if i == j and d[i][j] >= cutoff:
+        return d[i][j]     
+      
   return d[m][n]
 
 
