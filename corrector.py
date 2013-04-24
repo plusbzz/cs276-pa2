@@ -34,6 +34,31 @@ def jaccard_coeff(s1,s2):
   
   return (1.0*len(s1.intersection(s2)))/len(s1.union(s2))
 
+def edit_distance(a,b,cutoff=sys.maxint):
+  m = len(a)
+  n = len(b)
+  
+  d = [[0 for x in xrange(n+1)] for x in xrange(m+1)]
+  
+  for i in range(1,m+1):
+    d[i][0] = i
+    
+  for j in range(1,n+1):
+    d[0][j] = j
+
+  for j in range(1,n+1):
+    for i in range(1,m+1):
+      if a[i-1] == b[j-1]:
+        d[i][j] = d[i-1][j-1]
+      else:
+        d[i][j] = min( [d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + 1] )
+        
+      if d[i][j] >= cutoff:
+        return d[i][j]
+        
+  return d[m][n]
+
+
 # Filters
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 2):
   # Candidate should start with same letter
