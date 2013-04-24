@@ -80,33 +80,42 @@ def scan_corpus(training_corpus_loc,lam = 0.2):
 
   return (word_log_prob_dict,biword_log_prob_dict)
 
-def create_2gram_index(word_dict):
+def create_ngram_index(word_dict):
   word_index = {}
   bigram_index = {}
+  trigram_index = {}
   
   counter_u = 1
   for word in word_dict:
     word_index[counter_u] = word
     
     bigrams = set([(t1+t2) for t1,t2 in zip(word[:-1],word[1:])])
-  
     for cb in bigrams:
       if cb not in bigram_index:
         bigram_index[cb] = []
       bigram_index[cb].append(counter_u)
-      
+          
+    trigrams = set([(t1+t2+t3) for t1,t2,t3 in zip(word[:-2],word[1:-1],word[2:])])
+    for ct in trigrams:
+      if ct not in trigram_index:
+        trigram_index[ct] = []
+      trigram_index[ct].append(counter_u)
+          
     counter_u += 1
-  
+    
   print >>sys.stderr,[word_index[i]  for i in bigram_index['th']]
   # Save kgram index using marshal
-  print >> sys.stderr, "Serializing character bigram index"
+  print >> sys.stderr, "Serializing character ngram index"
   serialize_data(word_index,"word_index.mrshl")
   serialize_data(bigram_index,"bigram_index.mrshl")
+  serialize_data(trigram_index,"trigram_index.mrshl")
+
+
   
 if __name__ == '__main__':
   u,b = scan_corpus(sys.argv[1],lam=0.2)
   print  >> sys.stderr,u['the']
   print  >> sys.stderr,b[('people','the')]
   
-  create_2gram_index(u)
+  create_ngram_index(u)
   

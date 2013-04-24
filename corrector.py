@@ -25,12 +25,17 @@ biword_counter = unserialize_data('biword_counter.mrshl')
 word_counter = unserialize_data('word_counter.mrshl')
 word_index = unserialize_data('word_index.mrshl')
 bigram_index = unserialize_data('bigram_index.mrshl')
+trigram_index = unserialize_data('trigram_index.mrshl')
 
 def sigmoid(z): return 1.0/(1+exp(-z))
 
 def jaccard_coeff(s1,s2):
-  s1 = set([(t1+t2) for t1,t2 in zip(s1[:-1],s1[1:])])
-  s2 = set([(t1+t2) for t1,t2 in zip(s2[:-1],s2[1:])])
+  if len(s1) <= 6 or len(s2) <= 6:
+    s1 = set([(t1+t2) for t1,t2 in zip(s1[:-1],s1[1:])])
+    s2 = set([(t1+t2) for t1,t2 in zip(s2[:-1],s2[1:])])
+  else:
+    s1 = set([(t1+t2+t3) for t1,t2,t3 in zip(s1[:-2],s1[1:-1],s1[2:])])
+    s2 = set([(t1+t2+t3) for t1,t2,t3 in zip(s2[:-2],s2[1:-1],s2[2:])])
   
   return (1.0*len(s1.intersection(s2)))/len(s1.union(s2))
 
@@ -53,33 +58,51 @@ def edit_distance(a,b,cutoff=sys.maxint):
       else:
         d[i][j] = min( [d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + 1] )
         
-      if d[i][j] >= cutoff:
-        return d[i][j]
+      #if i == j and d[i][j] >= cutoff:
+      #  return d[i][j]
         
   return d[m][n]
 
 
 # Filters
-def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 2):
+def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 3):
   # Candidate should start with same letter
   if word[0] != candidate[0]: return False
+  
   # Candidate should have length within edit_cutoff of word
-  if abs(len(candidate) - len(word)) > edit_cutoff: return False
+  if abs(len(candidate) - len(word)) >= edit_cutoff: return False
+  
   # Jaccard overlap
-  if jaccard_coeff(candidate,word) < jaccard_cutoff: return False
+  if jaccard_coeff(candidate,word) <= jaccard_cutoff: return False
+  
+  #Edit distance should be <= 2
+  if edit_distance(candidate,word) >= edit_cutoff: return False
+  
   return True
 
-def generate_word_candidates_from_bigrams(word,candidates,jaccard_cutoff = 0.4, edit_cutoff = 2):
+def generate_word_candidates_from_ngrams(word,candidates,jaccard_cutoff = 0.4, edit_cutoff = 3):
   # For each bigram in word
-  bigrams = set([(t1+t2) for t1,t2 in zip(word[:-1],word[1:])])
-  for cb in bigrams:
-    if cb in bigram_index:
-      postings = bigram_index[cb]
-      for candidate_id in postings:
-        candidate = word_index[candidate_id]
-        if (candidate not in candidates):
-          if is_good_candidate(candidate,word,jaccard_cutoff,edit_cutoff):
-            candidates.add(candidate)       
+  if len(word) <= 6:
+    bigrams = set([(t1+t2) for t1,t2 in zip(word[:-1],word[1:])])
+    for cb in bigrams:
+      if cb in bigram_index:
+        postings = bigram_index[cb]
+        for candidate_id in postings:
+          candidate = word_index[candidate_id]
+          if (candidate not in candidates):
+            if is_good_candidate(word,candidate,jaccard_cutoff,edit_cutoff):
+              candidates.add(candidate)
+  else:
+    trigrams = set([(t1+t2+t3) for t1,t2,t3 in zip(word[:-2],word[1:-1],word[2:])])
+    for ct in trigrams:
+      if ct in trigram_index:
+        postings = trigram_index[ct]
+        for candidate_id in postings:
+          candidate = word_index[candidate_id]
+          if (candidate not in candidates):
+            if is_good_candidate(word,candidate,jaccard_cutoff,edit_cutoff):
+              candidates.add(candidate)
+    
   return candidates
  
 def generate_candidates_with_spaces(word,candidates):  
@@ -97,11 +120,11 @@ def generate_candidates_with_spaces(word,candidates):
       pass
     elif (w1 not in word_counter) and (w2 in word_counter):
       #print >> sys.stderr, w1,w2,"w1 not in index"
-      w1_cands = generate_word_candidates_from_bigrams(w1,set(),edit_cutoff = 1)
+      w1_cands = generate_word_candidates_from_ngrams(w1,set(),edit_cutoff = 1)
       space_candidates.update([_w1 + " " + w2 for _w1 in w1_cands])
     elif (w1 in word_counter) and (w2 not in word_counter):
       #print >> sys.stderr, w1,w2,"w2 not in index"
-      w2_cands = generate_word_candidates_from_bigrams(w2,set(),edit_cutoff = 1)
+      w2_cands = generate_word_candidates_from_ngrams(w2,set(),edit_cutoff = 1)
       space_candidates.update([w1 + " " + _w2 for _w2 in w2_cands])
   
   for sc in space_candidates:
@@ -121,10 +144,9 @@ def generate_word_candidates(word):
   # TODO: if word is common enough, then should we generate more candidates?
   # TODO: Is there a way to make candidate generation more strict or loose?
   
-  # TODO: What do we do about spaces?
-  
+  # What do we do about spaces? 
   candidates = generate_candidates_with_spaces(word,candidates)
-  candidates = generate_word_candidates_from_bigrams(word,candidates)
+  candidates = generate_word_candidates_from_ngrams(word,candidates)
   
   return candidates
 
@@ -146,7 +168,8 @@ def parse_query(query):
   empty_set = set()
   
   # Split query into biwords after converting to lowercase
-  words = query.lower().split()
+  query = query.lower()
+  words = query.split()
   
   if len(words) == 1:
     return parse_singleword_query(words[0])
