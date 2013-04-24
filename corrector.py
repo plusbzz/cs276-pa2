@@ -1,19 +1,13 @@
-
 import sys
-from collections import OrderedDict
-import marshal
+from collections import deque
+from itertools import izip
+import cPickle as marshal
 
 queries_loc = 'data/queries.txt'
 gold_loc = 'data/gold.txt'
 google_loc = 'data/google.txt'
 
 alphabet = "abcdefghijklmnopqrstuvwxyz0123546789&$+_' "
-
-bigram_counter = unserialize_data('bigram_counter.mrshl')
-unigram_counter = unserialize_data('unigram_counter.mrshl')
-unigram_index = unserialize_data('unigram_index.mrshl')
-char_bigram_index = unserialize_data('char_bigram_index.mrshl')
-
 
 def unserialize_data(fname):
   """
@@ -24,6 +18,14 @@ def unserialize_data(fname):
   """
   with open(fname, 'rb') as f:
     return marshal.load(f)
+
+
+biword_counter = unserialize_data('biword_counter.mrshl')
+word_counter = unserialize_data('word_counter.mrshl')
+word_index = unserialize_data('word_index.mrshl')
+bigram_index = unserialize_data('bigram_index.mrshl')
+
+
 
 def jaccard_coeff(s1,s2):
   s1 = set([(t1+t2) for t1,t2 in zip(s1[:-1],s1[1:])])
@@ -39,23 +41,53 @@ def generate_word_candidates(word):
   # return candidates for word
   return
 
-def generate_biword_candidates(biword, candidate_dict):
-  pass
+# take each word of biword and generate isolated candidates from character-k-gram index
+def generate_word_candidates(word):
+  return set(["test"])
 
 def is_rare_biword(biword):
-  return False
+  return (biword not in biword_counter)
 
 def generate_candidate_queries(candidate_dict):
   pass
 
-def parse_query(query):
-  candidate_dict = OrderedDict()
+def parse_singleword_query(query):
+  pass
+
+def parse_multiword_query(query):
+  candidate_list = deque([])
+  empty_set = set()
+  
   # Split query into biwords after converting to lowercase
   words = query.lower().split()
   
-  # Decide if biword is rare enough
+  if len(words) == 1:
+    return parse_singleword_query(words[0])
+
+  # Update Bigram counts
+  for biword in izip(words[1:], words[:-1]):
+    # Decide if biword is rare enough
+    if is_rare_biword(biword):
+      for word in reversed(biword):
+        candidates = generate_word_candidates(word)
+        candidate_list.append(candidates)
+    else:
+      for word in reversed(biword):
+        candidate_list.append(empty_set)
+
+  final_list = []
+  final_list.append(candidate_list.popleft())  
+  for i in xrange(0,len(candidate_list)-1,2):
+    e1 = candidate_list.popleft()
+    e2 = candidate_list.popleft()
+    final_list.append(e1.union(e2))
+  final_list.append(candidate_list.popleft())  
+   
+  print >> sys.stderr, candidate_list
+  print >> sys.stderr, final_list
+  candidate_queries = generate_candidate_queries(final_list)
   
-  # if rare, take each word of biword and generate isolated candidates from character-k-gram index
+  return candidate_queries
 
 def read_query_data():
   """

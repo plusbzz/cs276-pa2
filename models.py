@@ -1,4 +1,3 @@
-import marshal
 import sys
 import os.path
 import gzip
@@ -7,6 +6,7 @@ from itertools import izip
 from math import log
 from collections import Counter
 import re
+import cPickle as marshal
 
 def serialize_data(data, fname):
   """
@@ -31,14 +31,14 @@ def scan_corpus(training_corpus_loc,lam = 0.2):
   Scans through the training corpus and counts how many lines of text there are
   """
   # Unigram counts
-  unigram_counter = Counter()
+  word_counter = Counter()
   # Unigram probabilities
-  unigram_log_prob_dict = {}
+  word_log_prob_dict = {}
   
   # Bigram counts
-  bigram_counter = Counter()
+  biword_counter = Counter()
   # Bigram probabilities. If bigram is "w1 w2", the key for the dict is (w2,w1), representing P(w2|w1)
-  bigram_log_prob_dict = {}
+  biword_log_prob_dict = {}
   
   for block_fname in iglob( os.path.join( training_corpus_loc, '*.txt' ) ):
     print >> sys.stderr, 'processing dir: ' + block_fname
@@ -48,60 +48,60 @@ def scan_corpus(training_corpus_loc,lam = 0.2):
       
       # Update Unigram counts
       for word in words:
-        unigram_counter[word] += 1
+        word_counter[word] += 1
         
       # Update Bigram counts
-      for bigram in izip(words[1:], words[:-1]):
-        bigram_counter[bigram] += 1
+      for biword in izip(words[1:], words[:-1]):
+        biword_counter[biword] += 1
   
   
   # Finished counts, now calculate probabilities   
-  total_terms = float(sum(unigram_counter.values()))     
-  for unigram in unigram_counter:
+  total_terms = float(sum(word_counter.values()))     
+  for word in word_counter:
     try:
-      unigram_log_prob_dict[unigram] = log(unigram_counter[unigram]/total_terms)
+      word_log_prob_dict[word] = log(word_counter[word]/total_terms)
     except ValueError:
-      print >> sys.stderr, unigram, unigram_counter[unigram],total_terms
+      print >> sys.stderr, word, word_counter[word],total_terms
       
   
   # Calculate interpolated bigram probability   
-  for bigram in bigram_counter:
-    w2,w1 = bigram
-    bigram_log_prob_dict[bigram] = log(lam*unigram_counter[w2]/total_terms
-                                       + (1.0-lam)*bigram_counter[bigram]/unigram_counter[w1])
+  for biword in biword_counter:
+    w2,w1 = biword
+    biword_log_prob_dict[biword] = log(lam*word_counter[w2]/total_terms
+                                       + (1.0-lam)*biword_counter[biword]/word_counter[w1])
    
   
   # Save language models using marshal
   print >> sys.stderr, "Serializing language models and counters"
-  serialize_data(unigram_log_prob_dict,"unigram_language_model.mrshl")
-  serialize_data(bigram_log_prob_dict,"bigram_language_model.mrshl")
-  serialize_data(unigram_counter,"unigram_counter.mrshl")
-  serialize_data(bigram_counter,"bigram_counter.mrshl")
+  serialize_data(word_log_prob_dict,"word_language_model.mrshl")
+  serialize_data(biword_log_prob_dict,"biword_language_model.mrshl")
+  serialize_data(word_counter,"word_counter.mrshl")
+  serialize_data(biword_counter,"biword_counter.mrshl")
 
-  return (unigram_log_prob_dict,bigram_log_prob_dict)
+  return (word_log_prob_dict,biword_log_prob_dict)
 
-def create_2gram_index(unigram_dict):
-  unigram_index = {}
-  char_bigram_index = {}
+def create_2gram_index(word_dict):
+  word_index = {}
+  bigram_index = {}
   
   counter_u = 1
-  for unigram in unigram_dict:
-    unigram_index[counter_u] = unigram
+  for word in word_dict:
+    word_index[counter_u] = word
     
-    char_bigrams = set([(t1+t2) for t1,t2 in zip(unigram[:-1],unigram[1:])])
+    bigrams = set([(t1+t2) for t1,t2 in zip(word[:-1],word[1:])])
   
-    for cb in char_bigrams:
-      if cb not in char_bigram_index:
-        char_bigram_index[cb] = []
-      char_bigram_index[cb].append(counter_u)
+    for cb in bigrams:
+      if cb not in bigram_index:
+        bigram_index[cb] = []
+      bigram_index[cb].append(counter_u)
       
     counter_u += 1
   
-  print >>sys.stderr,[unigram_index[i]  for i in char_bigram_index['th']]
+  print >>sys.stderr,[word_index[i]  for i in bigram_index['th']]
   # Save kgram index using marshal
   print >> sys.stderr, "Serializing character bigram index"
-  serialize_data(unigram_index,"unigram_index.mrshl")
-  serialize_data(char_bigram_index,"char_bigram_index.mrshl")
+  serialize_data(word_index,"word_index.mrshl")
+  serialize_data(bigram_index,"bigram_index.mrshl")
   
 if __name__ == '__main__':
   u,b = scan_corpus(sys.argv[1],lam=0.2)
