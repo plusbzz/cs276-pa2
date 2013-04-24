@@ -70,17 +70,17 @@ def parse_multiword_query(query):
     if is_rare_biword(biword):
       for word in reversed(biword):
         candidates = generate_word_candidates(word)
-        candidate_list.append(candidates)
+        candidate_list.append((word,candidates))
     else:
       for word in reversed(biword):
-        candidate_list.append(empty_set)
+        candidate_list.append((word,empty_set))
 
   final_list = []
   final_list.append(candidate_list.popleft())  
   for i in xrange(0,len(candidate_list)-1,2):
     e1 = candidate_list.popleft()
     e2 = candidate_list.popleft()
-    final_list.append(e1.union(e2))
+    final_list.append((e1[0],e1[1].union(e2[1])))
   final_list.append(candidate_list.popleft())  
    
   print >> sys.stderr, candidate_list
