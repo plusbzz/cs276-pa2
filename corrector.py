@@ -34,7 +34,7 @@ def jaccard_coeff(s1,s2):
   
   return (1.0*len(s1.intersection(s2)))/len(s1.union(s2))
 
-def edit_distance(a,b):
+def edit_distance(a,b,cutoff=sys.maxint):
   m = len(a)
   n = len(b)
   
@@ -53,6 +53,10 @@ def edit_distance(a,b):
       else:
         d[i][j] = min( [d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + 1] )
         
+      if i==j and d[i][j] >= cutoff:
+        return d[i][j]
+        
+      
   return d[m][n]
 
 
