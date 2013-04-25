@@ -111,6 +111,8 @@ def generate_candidates_with_spaces(word,candidates):
     w1 = word[:i]
     w2 = word[i:]
     
+    # TODO Use biword probability here?
+    
     #print >> sys.stderr, w1,w2
     if (w1 in word_counter) and (w2 in word_counter):
       #print >> sys.stderr, w1,w2,"both in index"
@@ -141,10 +143,10 @@ def generate_word_candidates(word):
   if word in word_counter:
     candidates.add(word)
   
-  # TODO: if word is common enough, then should we generate more candidates?
+  # TODO: if word is common enough, then should we generate fewer candidates?
   # TODO: Is there a way to make candidate generation more strict or loose?
   
-  # What do we do about spaces? 
+  # special handling for spaces 
   candidates = generate_candidates_with_spaces(word,candidates)
   candidates = generate_word_candidates_from_ngrams(word,candidates)
   
@@ -155,9 +157,6 @@ def is_rare_word(word):
   
 def is_rare_biword(biword):
   return (biword not in biword_counter)
-
-def generate_candidate_queries(candidate_list):
-  pass
 
 def parse_singleword_query(query):
   return generate_word_candidates(query)
@@ -174,7 +173,7 @@ def parse_query(query):
   if len(words) == 1:
     return parse_singleword_query(words[0])
 
-  # Update Bigram counts
+  # Biword counts
   for biword in izip(words[1:], words[:-1]):
     # Decide if biword is rare enough
     if is_rare_biword(biword):
