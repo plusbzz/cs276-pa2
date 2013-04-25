@@ -2,7 +2,7 @@ import sys
 from collections import deque
 from itertools import izip,product
 import cPickle as marshal
-from math import exp
+from math import exp, log
 
 queries_loc = 'data/queries.txt'
 gold_loc = 'data/gold.txt'
@@ -20,7 +20,7 @@ def unserialize_data(fname):
   with open(fname, 'rb') as f:
     return marshal.load(f)
 
-
+word_log_prob = unserialize_data('word_language_model.mrshl')
 biword_counter = unserialize_data('biword_counter.mrshl')
 word_counter = unserialize_data('word_counter.mrshl')
 word_index = unserialize_data('word_index.mrshl')
@@ -63,6 +63,24 @@ def edit_distance(a,b,cutoff=sys.maxint):
       
   return d[m][n]
 
+def uniform_cost_edit_distance(r,q,cost):
+  """
+  Estimates the probability of writting 'r' when meaning 'q'.
+  Any single edit using an operator defined in the Damerau-Levenshtein distance
+  has unifor probability defined by 'cost'
+  
+  Returns P(r|q) = (cost^edit_distance(r,q) * P(q)
+  """
+  
+  if q not in word_log_prob:
+    return 0
+  else:
+    d = edit_distance(r,q)
+    log_prob_q = word_log_prob[q]
+    log_prob_r_q = d * log(cost) + log_prob_q
+    
+    return exp(log_prob_r_q)
+  
 
 # Filters
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 3):
