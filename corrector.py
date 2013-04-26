@@ -80,6 +80,52 @@ def uniform_cost_edit_distance(r,q,cost):
     log_prob_r_q = d * log(cost) + log_prob_q
     
     return exp(log_prob_r_q)
+
+def findEditOperation(finalWord,intendedWord):
+  result = ("no-change",'','')
+
+  editFound = False  
+  lastIntendedLetter="#" 
+  finalWordLength = len(finalWord)
+  intendedWordLength = len(intendedWord)
+  
+  finalWordIndex = 0
+  intendedWordIndex = 0
+  while (finalWordIndex < finalWordLength) and (intendedWordIndex < intendedWordLength):
+    if finalWord[finalWordIndex] == intendedWord[intendedWordIndex]:
+      lastIntendedLetter = intendedWord[intendedWordIndex]      
+      finalWordIndex += 1
+      intendedWordIndex +=1
+    else:
+      nextFinalWordIdx = finalWordIndex + 1;
+      nextIntendedWordIdx = intendedWordIndex + 1;
+      
+      # Substitution
+      if finalWord[finalWordIndex] != intendedWord[intendedWordIndex] and (nextFinalWordIdx < finalWordLength) and (finalWord[nextFinalWordIdx] != intendedWord[intendedWordIndex]):
+        result = ("sub",intendedWord[intendedWordIndex],finalWord[finalWordIndex])
+        editFound = True
+        break
+
+      # Transposition      
+      if (nextFinalWordIdx < finalWordLength) and (nextIntendedWordIdx < intendedWordLength):
+        if (intendedWord[intendedWordIndex] == finalWord[nextFinalWordIdx] and intendedWord[nextIntendedWordIdx] == finalWord[finalWordIndex]):
+          result = ("tras", intendedWord[intendedWordIndex], intendedWord[nextIntendedWordIdx])
+          editFound = True
+          break
+        
+      # Insertion
+      if (nextFinalWordIdx < finalWordLength) and intendedWord[intendedWordIndex] == finalWord[nextFinalWordIdx]:
+        result = ("ins",lastIntendedLetter,finalWord[finalWordIndex])
+        editFound = True
+        break
+      
+      # Deletion
+        
+  if not editFound and (intendedWordIndex == intendedWordLength) and (finalWordIndex < finalWordLength):
+    result = ("ins",lastIntendedLetter,finalWord[finalWordIndex])
+    editFound = True
+    
+  return result;     
   
 
 # Filters
