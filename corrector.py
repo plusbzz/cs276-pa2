@@ -82,51 +82,80 @@ def uniform_cost_edit_distance(r,q,cost):
     return exp(log_prob_r_q)
 
 def findEditOperation(finalWord,intendedWord):
-  result = ("no-change",'','')
+  """
+    Takes two words separated by 1 edit distance
+    Returns a tuple with the edit operation applied and the characters involved
+    e.g. findEditOperation(hpello,hello) returns (4,'h','p')
+    
+    match         = 0
+    deletion      = 1
+    substitution  = 2
+    transposition = 3
+    insertion     = 4
+    
+  """
+  match         = 0
+  deletion      = 1
+  substitution  = 2
+  transposition = 3
+  insertion     = 4
+  
+  result = (match,'','')
+  
+  if edit_distance(finalWord,intendedWord) != 1:
+    return result
 
   editFound = False  
   lastIntendedLetter="#" 
   finalWordLength = len(finalWord)
   intendedWordLength = len(intendedWord)
   
-  finalWordIndex = 0
-  intendedWordIndex = 0
-  while (finalWordIndex < finalWordLength) and (intendedWordIndex < intendedWordLength):
-    if finalWord[finalWordIndex] == intendedWord[intendedWordIndex]:
-      lastIntendedLetter = intendedWord[intendedWordIndex]      
-      finalWordIndex += 1
-      intendedWordIndex +=1
+  finalWordIdx = 0
+  intendedWordIdx = 0
+  while (finalWordIdx < finalWordLength) and (intendedWordIdx < intendedWordLength):
+    
+    if finalWord[finalWordIdx] == intendedWord[intendedWordIdx]:
+      lastIntendedLetter = intendedWord[intendedWordIdx]      
+      finalWordIdx += 1
+      intendedWordIdx +=1
     else:
-      nextFinalWordIdx = finalWordIndex + 1;
-      nextIntendedWordIdx = intendedWordIndex + 1;
-      
-      # Substitution
-      if finalWord[finalWordIndex] != intendedWord[intendedWordIndex] and (nextFinalWordIdx < finalWordLength) and (finalWord[nextFinalWordIdx] != intendedWord[intendedWordIndex]):
-        result = ("sub",intendedWord[intendedWordIndex],finalWord[finalWordIndex])
+      finalWordNextIdx = finalWordIdx + 1;
+      intendedWordNextIdx = intendedWordIdx + 1;
+     
+      # Deletion
+      if (finalWordLength == intendedWordLength - 1) and (intendedWordNextIdx < intendedWordLength) and finalWord[finalWordIdx] == intendedWord[intendedWordNextIdx]:
+        result = (deletion,lastIntendedLetter,intendedWord[intendedWordIdx])
         editFound = True
         break
 
       # Transposition      
-      if (nextFinalWordIdx < finalWordLength) and (nextIntendedWordIdx < intendedWordLength):
-        if (intendedWord[intendedWordIndex] == finalWord[nextFinalWordIdx] and intendedWord[nextIntendedWordIdx] == finalWord[finalWordIndex]):
-          result = ("tras", intendedWord[intendedWordIndex], intendedWord[nextIntendedWordIdx])
+      if (finalWordLength == intendedWordLength) and (finalWordNextIdx < finalWordLength) and (intendedWordNextIdx < intendedWordLength):
+        if (intendedWord[intendedWordIdx] == finalWord[finalWordNextIdx] and intendedWord[intendedWordNextIdx] == finalWord[finalWordIdx]):
+          result = (transposition, intendedWord[intendedWordIdx], intendedWord[intendedWordNextIdx])
           editFound = True
           break
-        
-      # Insertion
-      if (nextFinalWordIdx < finalWordLength) and intendedWord[intendedWordIndex] == finalWord[nextFinalWordIdx]:
-        result = ("ins",lastIntendedLetter,finalWord[finalWordIndex])
+      
+      # Substitutions
+      if (finalWordLength == intendedWordLength) and (finalWord[finalWordIdx] != intendedWord[intendedWordIdx]):
+        result = (substitution,intendedWord[intendedWordIdx],finalWord[finalWordIdx])
         editFound = True
         break
-      
-      # Deletion
         
-  if not editFound and (intendedWordIndex == intendedWordLength) and (finalWordIndex < finalWordLength):
-    result = ("ins",lastIntendedLetter,finalWord[finalWordIndex])
+      # Insertion
+      if (finalWordLength == intendedWordLength + 1) and (finalWordNextIdx < finalWordLength) and intendedWord[intendedWordIdx] == finalWord[finalWordNextIdx]:
+        result = (insertion,lastIntendedLetter,finalWord[finalWordIdx])
+        editFound = True
+        break
+        
+  if not editFound and (intendedWordIdx == intendedWordLength) and (finalWordIdx < finalWordLength):
+    result = (insertion,lastIntendedLetter,finalWord[finalWordIdx])
+    editFound = True
+
+  if not editFound and (finalWordIdx == finalWordLength) and (intendedWordIdx < intendedWordLength):
+    result = (deletion,lastIntendedLetter,intendedWord[intendedWordIdx])
     editFound = True
     
-  return result;     
-  
+  return result  
 
 # Filters
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 3):
