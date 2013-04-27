@@ -32,6 +32,7 @@ trigram_index = unserialize_data('trigram_index.mrshl')
 def sigmoid(z): return 1.0/(1+exp(-z))
 
 def jaccard_coeff(s1,s2):
+  '''Use bigrams or trigrams to calculate jaccard similarity of two strings'''
   if len(s1) <= 10 or len(s2) <= 10:
     s1 = set([(t1+t2) for t1,t2 in zip(s1[:-1],s1[1:])])
     s2 = set([(t1+t2) for t1,t2 in zip(s2[:-1],s2[1:])])
@@ -42,6 +43,7 @@ def jaccard_coeff(s1,s2):
   return (1.0*len(s1.intersection(s2)))/len(s1.union(s2))
 
 def edit_distance(a,b,cutoff=sys.maxint):
+  '''Calculate edit distance between two strings'''
   m = len(a)
   n = len(b)
   
@@ -224,7 +226,8 @@ def generate_word_candidates_from_ngrams(word,candidates,jaccard_cutoff = 0.4, e
     
   return candidates
  
-def generate_candidates_with_spaces(word,candidates):  
+def generate_candidates_with_spaces(word,candidates):
+  '''Insert spaces for candidates'''
   space_candidates = set()
   for i in xrange(1,len(word)):
     w1 = word[:i]
@@ -250,6 +253,7 @@ def generate_candidates_with_spaces(word,candidates):
   return candidates
 
 def rank_candidates(candidates,word,cost_func,max_c):
+  '''Rank candidates for a word using cost function and return at most top max_c candidates'''
   scored_candidates = {}
   for cand in candidates:
     scored_candidates[cand] = cost_func(word,cand)
