@@ -3,6 +3,7 @@ from collections import deque
 from itertools import izip,product
 import cPickle as marshal
 from math import exp, log
+import operator
 
 queries_loc = 'data/queries.txt'
 gold_loc = 'data/gold.txt'
@@ -21,6 +22,7 @@ def unserialize_data(fname):
     return marshal.load(f)
 
 word_log_prob = unserialize_data('word_language_model.mrshl')
+biword_log_prob = unserialize_data('biword_language_model.mrshl')
 biword_counter = unserialize_data('biword_counter.mrshl')
 word_counter = unserialize_data('word_counter.mrshl')
 word_index = unserialize_data('word_index.mrshl')
@@ -63,23 +65,47 @@ def edit_distance(a,b,cutoff=sys.maxint):
       
   return d[m][n]
 
-def uniform_cost_edit_distance(r,q,cost):
+def calculate_biword_log_prob(biword,lam=0.2):
+  llam = log(lam)
+  llam_c = log(1-lam)
+  w2,w1 = biword
+  bprob = 0
+  if biword in biword_log_prob:
+    bprob += exp(llam_c+biword_log_prob[biword])
+  if w2 in word_log_prob:
+    bprob += exp(llam + word_log_prob[w2])
+  
+  if bprob == 0: return -100
+  return log(bprob)
+
+def calculate_log_prob(query,lam=0.2):
+  words = query.split() 
+  prob = 0
+  # Product of biword conditionals
+  for biword in izip(words[1:], words[:-1]):
+    prob += calculate_biword_log_prob(biword,lam)
+    
+  w = words[0]
+  if w in word_log_prob:
+    prob += word_log_prob[w]
+    
+  if prob == 0: return -100
+  return prob
+  
+def uniform_cost_edit_distance(r,q,cost=0.1):
   """
   Estimates the probability of writting 'r' when meaning 'q'.
   Any single edit using an operator defined in the Damerau-Levenshtein distance
-  has unifor probability defined by 'cost'
+  has uniform probability defined by 'cost'
   
-  Returns P(r|q) = (cost^edit_distance(r,q) * P(q)
+  Returns P(r|q) = (cost^edit_distance(r,q) * P(q))
   """
-  
-  if q not in word_log_prob:
-    return 0
-  else:
-    d = edit_distance(r,q)
-    log_prob_q = word_log_prob[q]
-    log_prob_r_q = d * log(cost) + log_prob_q
+
+  d = edit_distance(r,q)
+  log_prob_q = calculate_log_prob(q)
+  log_prob_r_q = d * log(cost) + log_prob_q
     
-    return exp(log_prob_r_q)
+  return log_prob_r_q
 
 def findEditOperation(finalWord,intendedWord):
   result = ("no-change",'','')
@@ -146,7 +172,7 @@ def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 3):
 
 def generate_word_candidates_from_ngrams(word,candidates,jaccard_cutoff = 0.4, edit_cutoff = 3):
   # For each bigram in word
-  if len(word) <= 6:
+  if len(word) < 6:
     bigrams = set([(t1+t2) for t1,t2 in zip(word[:-1],word[1:])])
     for cb in bigrams:
       if cb in bigram_index:
@@ -199,8 +225,19 @@ def generate_candidates_with_spaces(word,candidates):
       
   return candidates
 
+def rank_candidates(candidates,word,cost_func,max_c):
+  scored_candidates = {}
+  for cand in candidates:
+    scored_candidates[cand] = cost_func(word,cand)
+    
+  ranked_candidates = sorted(scored_candidates.iteritems(), key=operator.itemgetter(1),reverse=True)
+  print >> sys.stderr, ranked_candidates
+  
+  ranked_candidates = ranked_candidates[:max_c]
+  return [c for c,s in ranked_candidates]
+    
 # take each word of biword and generate isolated candidates from character-k-gram index
-def generate_word_candidates(word):
+def generate_word_candidates(word, max_c = 100):
   '''Accept a word, return a set of strings, each representing a candidate for that word'''
   candidates = set()
   # if word is in corpus then it's a candidate
@@ -213,6 +250,9 @@ def generate_word_candidates(word):
   # special handling for spaces 
   candidates = generate_candidates_with_spaces(word,candidates)
   candidates = generate_word_candidates_from_ngrams(word,candidates)
+  
+  # Ranking of candidates
+  candidates = rank_candidates(candidates,word,uniform_cost_edit_distance,max_c)
   
   return candidates
 
@@ -229,20 +269,25 @@ def parse_query(query):
   '''Process a multiword query'''
   candidate_list = deque([])
   empty_set = set()
+  max_candidates = 500
   
   # Split query into biwords after converting to lowercase
   query = query.lower()
   words = query.split()
-  
-  if len(words) == 1:
+  len_q = len(words)
+
+  candidates_per_word = max_candidates/len_q;
+
+  if len_q == 1:
     return parse_singleword_query(words[0])
 
+  
   # Biword counts
   for biword in izip(words[1:], words[:-1]):
     # Decide if biword is rare enough
     if is_rare_biword(biword):
       for word in reversed(biword):
-        candidates = generate_word_candidates(word)
+        candidates = generate_word_candidates(word,candidates_per_word)
         candidate_list.append((word,candidates))
     else:
       for word in reversed(biword):
@@ -253,7 +298,7 @@ def parse_query(query):
   for i in xrange(0,len(candidate_list)-1,2):
     e1 = candidate_list.popleft()
     e2 = candidate_list.popleft()
-    final_query_list.append(e1[1].union(e2[1]))
+    final_query_list.append(e1[1])
   final_query_list.append(candidate_list.popleft()[1])  
    
   #print >> sys.stderr, final_list 
