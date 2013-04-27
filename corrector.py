@@ -232,19 +232,14 @@ def generate_candidates_with_spaces(word,candidates):
     
     # TODO Use biword probability here?
     
-    #print >> sys.stderr, w1,w2
     if (w1 in word_counter) and (w2 in word_counter):
-      #print >> sys.stderr, w1,w2,"both in index"
       space_candidates.add(w1 + " " + w2)
     elif (w1 not in word_counter) and (w2 not in word_counter):
-      #print >> sys.stderr, w1,w2,"both not in index"
       pass
     elif (w1 not in word_counter) and (w2 in word_counter):
-      #print >> sys.stderr, w1,w2,"w1 not in index"
       w1_cands = generate_word_candidates_from_ngrams(w1,set(),edit_cutoff = 2)
       space_candidates.update([_w1 + " " + w2 for _w1 in w1_cands])
     elif (w1 in word_counter) and (w2 not in word_counter):
-      #print >> sys.stderr, w1,w2,"w2 not in index"
       w2_cands = generate_word_candidates_from_ngrams(w2,set(),edit_cutoff = 2)
       space_candidates.update([w1 + " " + _w2 for _w2 in w2_cands])
   
