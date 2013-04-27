@@ -73,8 +73,21 @@ def edit_distance(a,b,cutoff=sys.maxint):
       
   return d[m][n]
 
+def calculate_biword_log_prob_sb(biword,alpha=0.4):
+  '''Calculate biword prior log-probability with stupid backoff'''
+  w2,w1 = biword
+  bprob = 0
+  if biword in biword_log_prob:
+    bprob = biword_log_prob[biword]
+  elif w2 in word_log_prob:
+    bprob = log(alpha) + word_log_prob[w2]
+  
+  if bprob == 0: return -100
+  return bprob
+
 def calculate_biword_log_prob(biword,lam=0.2):
   '''Calculate biword prior log-probability with interpolation'''
+  
   llam = log(lam)
   llam_c = log(1-lam)
   w2,w1 = biword

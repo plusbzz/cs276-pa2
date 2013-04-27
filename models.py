@@ -39,10 +39,18 @@ def read_edit1s():
   return edit1s
 
 def calculate_biword_log_prob(biword,total_terms,lam = 0.2, extra = False):
+  '''Use interpolation or stupid backoff to calculate biword probability'''
+  
   w2,w1 = biword
-  return log(lam*word_counter[w2]/total_terms + (1.0-lam)*biword_counter[biword]/word_counter[w1])  
+  if extra:
+    if biword in word_counter:
+      return log(biword_counter[biword]) - log(word_counter[w1]) # bigram probability
+    else:
+      return log(0.4) + log(word_counter[w2]) - log(total_terms) # alpha = 0.4
+  else:
+    return log(lam*word_counter[w2]/total_terms + (1.0-lam)*biword_counter[biword]/word_counter[w1])  
 
-def scan_corpus(training_corpus_loc):
+def scan_corpus(training_corpus_loc, extra = False):
   """
   Scans through the training corpus. Generates and serializes the following things:
   - Word counts
@@ -77,7 +85,7 @@ def scan_corpus(training_corpus_loc):
   
   # Calculate biword probability   
   for biword in biword_counter:
-    biword_log_prob_dict[biword] = calculate_biword_log_prob(biword,total_terms)
+    biword_log_prob_dict[biword] = calculate_biword_log_prob(biword,total_terms,extra = extra)
    
   
   # Save language models using marshal
@@ -124,7 +132,14 @@ def create_ngram_index(word_dict):
 
   
 if __name__ == '__main__':
-  u,b = scan_corpus(sys.argv[1])
+  extra = False
+  if sys.argv[1] == "extra":
+    extra = True
+    corpus_dir,edit1s = sys.argv[2:]
+  else:
+    corpus_dir,edit1s = sys.argv[1:]
+    
+  u,b = scan_corpus(corpus_dir, extra)
   print  >> sys.stderr,u['the']
   print  >> sys.stderr,b[('people','the')]
   
