@@ -209,7 +209,7 @@ def findEditOperation(finalWord,intendedWord):
     
   return result  
 
-def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 3):
+def is_good_candidate(candidate,word,jaccard_cutoff = 0.2, edit_cutoff = 3):
   '''Test if a candidate is good enough to a word with some heuristics'''
 
   # Candidate should start with same letter
@@ -287,7 +287,7 @@ def rank_candidates(candidates,word,cost_func,max_c):
     scored_candidates[cand] = cost_func(word,cand)
     
   ranked_candidates = sorted(scored_candidates.iteritems(), key=operator.itemgetter(1),reverse=True)
-  print >> sys.stderr, ranked_candidates
+  #print >> sys.stderr, ranked_candidates
   
   ranked_candidates = ranked_candidates[:max_c]
   return [c for c,s in ranked_candidates]
@@ -327,7 +327,6 @@ def parse_query(query):
   '''Process a multiword query'''
 
   candidate_list = deque([])
-  empty_set = set()
   max_candidates = 500
   
   # Split query into biwords after converting to lowercase
@@ -350,20 +349,25 @@ def parse_query(query):
         candidate_list.append((word,candidates))
     else:
       for word in reversed(biword):
-        candidate_list.append((word,empty_set))
+        candidate_list.append((word,[word]))
 
   final_query_list = []
   final_query_list.append(candidate_list.popleft()[1])  
   for i in xrange(0,len(candidate_list)-1,2):
     e1 = candidate_list.popleft()
     e2 = candidate_list.popleft()
-    final_query_list.append(e1[1])
+    if len(e1[1]) > 0:
+      final_query_list.append(e1[1])
+    elif len(e2[1]) > 0:
+      final_query_list.append(e2[1])
   final_query_list.append(candidate_list.popleft()[1])  
-       
+  
+  #print >> sys.stderr,final_query_list
+  
   candidates =  [" ".join(q) for q in islice(product(*final_query_list),0,max_candidates)]
   return rank_candidates(candidates,query,uniform_cost_edit_distance,max_candidates)
 
-def read_query_data():
+def read_query_data(queries_loc,gold_loc,google_loc):
   """
   all three files match with corresponding queries on each line
   """
@@ -383,4 +387,27 @@ def read_query_data():
   return (queries, gold, google)
 
 if __name__ == '__main__':
-  print(sys.argv)
+  queries,golds,googles = read_query_data(sys.argv[1],sys.argv[2],sys.argv[3])
+  total = 0
+  correct = 0
+  google_correct = 0
+  
+  for query,gold,google in izip(queries,golds,googles):
+    cands = parse_query(query)
+    best_cand = cands[0] if len(cands) > 0 else ""
+
+    if best_cand == gold:
+      result = "Right"
+      correct+=1
+    else:
+      result = "Wrong"
+    
+    if google == gold:
+      google_correct += 1
+    
+    total +=1
+    print >> sys.stderr,query,len(best_cand),len(gold)
+    print "|".join([result,query,best_cand,gold,google])
+
+  print >> sys.stderr, correct,"out of",total,"correct."
+  print >> sys.stderr, google_correct,"out of",total,"correct for google."
