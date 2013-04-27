@@ -1,6 +1,6 @@
 import sys
 from collections import deque
-from itertools import izip,product
+from itertools import izip,product,islice
 import cPickle as marshal
 from math import exp, log
 import operator
@@ -32,7 +32,7 @@ trigram_index = unserialize_data('trigram_index.mrshl')
 def sigmoid(z): return 1.0/(1+exp(-z))
 
 def jaccard_coeff(s1,s2):
-  if len(s1) <= 6 or len(s2) <= 6:
+  if len(s1) <= 10 or len(s2) <= 10:
     s1 = set([(t1+t2) for t1,t2 in zip(s1[:-1],s1[1:])])
     s2 = set([(t1+t2) for t1,t2 in zip(s2[:-1],s2[1:])])
   else:
@@ -201,7 +201,7 @@ def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 3):
 
 def generate_word_candidates_from_ngrams(word,candidates,jaccard_cutoff = 0.4, edit_cutoff = 3):
   # For each bigram in word
-  if len(word) < 6:
+  if len(word) < 10:
     bigrams = set([(t1+t2) for t1,t2 in zip(word[:-1],word[1:])])
     for cb in bigrams:
       if cb in bigram_index:
@@ -241,11 +241,11 @@ def generate_candidates_with_spaces(word,candidates):
       pass
     elif (w1 not in word_counter) and (w2 in word_counter):
       #print >> sys.stderr, w1,w2,"w1 not in index"
-      w1_cands = generate_word_candidates_from_ngrams(w1,set(),edit_cutoff = 1)
+      w1_cands = generate_word_candidates_from_ngrams(w1,set(),edit_cutoff = 2)
       space_candidates.update([_w1 + " " + w2 for _w1 in w1_cands])
     elif (w1 in word_counter) and (w2 not in word_counter):
       #print >> sys.stderr, w1,w2,"w2 not in index"
-      w2_cands = generate_word_candidates_from_ngrams(w2,set(),edit_cutoff = 1)
+      w2_cands = generate_word_candidates_from_ngrams(w2,set(),edit_cutoff = 2)
       space_candidates.update([w1 + " " + _w2 for _w2 in w2_cands])
   
   for sc in space_candidates:
@@ -332,7 +332,8 @@ def parse_query(query):
    
   #print >> sys.stderr, final_list 
     
-  return [" ".join(q) for q in product(*final_query_list)]
+  candidates =  [" ".join(q) for q in islice(product(*final_query_list),0,max_candidates)]
+  return rank_candidates(candidates,query,uniform_cost_edit_distance,max_candidates)
 
 def read_query_data():
   """
