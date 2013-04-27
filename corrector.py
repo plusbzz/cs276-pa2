@@ -74,6 +74,7 @@ def edit_distance(a,b,cutoff=sys.maxint):
   return d[m][n]
 
 def calculate_biword_log_prob(biword,lam=0.2):
+  '''Calculate biword prior log-probability with interpolation'''
   llam = log(lam)
   llam_c = log(1-lam)
   w2,w1 = biword
@@ -87,6 +88,10 @@ def calculate_biword_log_prob(biword,lam=0.2):
   return log(bprob)
 
 def calculate_log_prob(query,lam=0.2):
+  '''
+  Calculate prior log-probability of a (multi-word) query Q = (w1,w2,...,wn)
+  P(Q) = P(w1)P(w2|w1)... and so on
+  '''
   words = query.split() 
   prob = 0
   # Product of biword conditionals
@@ -102,7 +107,7 @@ def calculate_log_prob(query,lam=0.2):
   
 def uniform_cost_edit_distance(r,q,cost=0.1):
   """
-  Estimates the probability of writting 'r' when meaning 'q'.
+  Estimates the probability of writing 'r' when meaning 'q'.
   Any single edit using an operator defined in the Damerau-Levenshtein distance
   has uniform probability defined by 'cost'
   
@@ -191,8 +196,9 @@ def findEditOperation(finalWord,intendedWord):
     
   return result  
 
-# Filters
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 3):
+  '''Test if a candidate is good enough to a word with some heuristics'''
+
   # Candidate should start with same letter
   if word[0] != candidate[0]: return False
   
@@ -208,7 +214,8 @@ def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 3):
   return True
 
 def generate_word_candidates_from_ngrams(word,candidates,jaccard_cutoff = 0.4, edit_cutoff = 3):
-  # For each bigram in word
+  '''Generate candidates by concatenating postings lists from shared bigrams or trigrams (depending on length)'''
+
   if len(word) < 10:
     bigrams = set([(t1+t2) for t1,t2 in zip(word[:-1],word[1:])])
     for cb in bigrams:
@@ -233,7 +240,8 @@ def generate_word_candidates_from_ngrams(word,candidates,jaccard_cutoff = 0.4, e
   return candidates
  
 def generate_candidates_with_spaces(word,candidates):
-  '''Insert spaces for candidates'''
+  '''Generate candidates for a word with spaces inserted'''
+
   space_candidates = set()
   for i in xrange(1,len(word)):
     w1 = word[:i]
@@ -260,6 +268,7 @@ def generate_candidates_with_spaces(word,candidates):
 
 def rank_candidates(candidates,word,cost_func,max_c):
   '''Rank candidates for a word using cost function and return at most top max_c candidates'''
+
   scored_candidates = {}
   for cand in candidates:
     scored_candidates[cand] = cost_func(word,cand)
@@ -270,9 +279,9 @@ def rank_candidates(candidates,word,cost_func,max_c):
   ranked_candidates = ranked_candidates[:max_c]
   return [c for c,s in ranked_candidates]
     
-# take each word of biword and generate isolated candidates from character-k-gram index
 def generate_word_candidates(word, max_c = 100):
   '''Accept a word, return a set of strings, each representing a candidate for that word'''
+
   candidates = set()
   # if word is in corpus then it's a candidate
   if word in word_counter:
@@ -297,10 +306,13 @@ def is_rare_biword(biword):
   return (biword not in biword_counter)
 
 def parse_singleword_query(query):
+  '''Process a single-word query'''
+
   return generate_word_candidates(query)
 
 def parse_query(query):
   '''Process a multiword query'''
+
   candidate_list = deque([])
   empty_set = set()
   max_candidates = 500
@@ -334,9 +346,7 @@ def parse_query(query):
     e2 = candidate_list.popleft()
     final_query_list.append(e1[1])
   final_query_list.append(candidate_list.popleft()[1])  
-   
-  #print >> sys.stderr, final_list 
-    
+       
   candidates =  [" ".join(q) for q in islice(product(*final_query_list),0,max_candidates)]
   return rank_candidates(candidates,query,uniform_cost_edit_distance,max_candidates)
 

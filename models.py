@@ -8,6 +8,18 @@ from collections import Counter
 import re
 import cPickle as marshal
 
+
+  
+# Word counts
+word_counter = Counter()
+# Word probabilities
+word_log_prob_dict = {}
+
+# Biword counts
+biword_counter = Counter()
+# Biword probabilities. If biword is "w1 w2", the key for the dict is (w2,w1), representing P(w2|w1)
+biword_log_prob_dict = {}
+
 def serialize_data(data, fname):
   """
   Writes `data` to a file named `fname`
@@ -26,20 +38,19 @@ def read_edit1s():
     edit1s = [ line.rstrip().split('\t') for line in f if line.rstrip() ]
   return edit1s
 
-def scan_corpus(training_corpus_loc,lam = 0.2):
+def calculate_biword_log_prob(biword,total_terms,lam = 0.2, extra = False):
+  w2,w1 = biword
+  return log(lam*word_counter[w2]/total_terms + (1.0-lam)*biword_counter[biword]/word_counter[w1])  
+
+def scan_corpus(training_corpus_loc):
   """
-  Scans through the training corpus and counts how many lines of text there are
+  Scans through the training corpus. Generates and serializes the following things:
+  - Word counts
+  - Biword counts
+  - Word prior log-probabilities
+  - Biword prior log-probabilities
   """
-  # Unigram counts
-  word_counter = Counter()
-  # Unigram probabilities
-  word_log_prob_dict = {}
-  
-  # Bigram counts
-  biword_counter = Counter()
-  # Bigram probabilities. If bigram is "w1 w2", the key for the dict is (w2,w1), representing P(w2|w1)
-  biword_log_prob_dict = {}
-  
+
   for block_fname in iglob( os.path.join( training_corpus_loc, '*.txt' ) ):
     print >> sys.stderr, 'processing dir: ' + block_fname
     with open( block_fname ) as f:
@@ -64,11 +75,9 @@ def scan_corpus(training_corpus_loc,lam = 0.2):
       print >> sys.stderr, word, word_counter[word],total_terms
       
   
-  # Calculate interpolated bigram probability   
+  # Calculate biword probability   
   for biword in biword_counter:
-    w2,w1 = biword
-    biword_log_prob_dict[biword] = log(lam*word_counter[w2]/total_terms
-                                       + (1.0-lam)*biword_counter[biword]/word_counter[w1])
+    biword_log_prob_dict[biword] = calculate_biword_log_prob(biword,total_terms)
    
   
   # Save language models using marshal
@@ -81,6 +90,8 @@ def scan_corpus(training_corpus_loc,lam = 0.2):
   return (word_log_prob_dict,biword_log_prob_dict)
 
 def create_ngram_index(word_dict):
+  '''Create character bigram and trigram postings lists, and serialize them'''
+  
   word_index = {}
   bigram_index = {}
   trigram_index = {}
@@ -113,7 +124,7 @@ def create_ngram_index(word_dict):
 
   
 if __name__ == '__main__':
-  u,b = scan_corpus(sys.argv[1],lam=0.2)
+  u,b = scan_corpus(sys.argv[1])
   print  >> sys.stderr,u['the']
   print  >> sys.stderr,b[('people','the')]
   
