@@ -137,22 +137,21 @@ def findEditOperation(finalWord,intendedWord):
   """
     Takes two words separated by 1 edit distance
     Returns a tuple with the edit operation applied and the characters involved
+    Follows the approach defined by Kernighan, Church and Gale in 'A Spelling Correction Program Based On Noisy Channel Model'
     e.g. findEditOperation(hpello,hello) returns (4,'h','p')
     
-    match         = 0
-    deletion      = 1
-    substitution  = 2
-    transposition = 3
-    insertion     = 4
+    deletion      = 0
+    substitution  = 1
+    transposition = 2
+    insertion     = 3
     
   """
-  match         = 0
-  deletion      = 1
-  substitution  = 2
-  transposition = 3
-  insertion     = 4
+  deletion      = 0
+  substitution  = 1
+  transposition = 2
+  insertion     = 3
   
-  result = (match,'','')
+  result = []
   
   if edit_distance(finalWord,intendedWord) != 1:
     return result
@@ -176,38 +175,73 @@ def findEditOperation(finalWord,intendedWord):
      
       # Deletion
       if (finalWordLength == intendedWordLength - 1) and (intendedWordNextIdx < intendedWordLength) and finalWord[finalWordIdx] == intendedWord[intendedWordNextIdx]:
-        result = (deletion,lastIntendedLetter,intendedWord[intendedWordIdx])
+        result = [deletion, (lastIntendedLetter,intendedWord[intendedWordIdx])]
         editFound = True
         break
 
       # Transposition      
       if (finalWordLength == intendedWordLength) and (finalWordNextIdx < finalWordLength) and (intendedWordNextIdx < intendedWordLength):
         if (intendedWord[intendedWordIdx] == finalWord[finalWordNextIdx] and intendedWord[intendedWordNextIdx] == finalWord[finalWordIdx]):
-          result = (transposition, intendedWord[intendedWordIdx], intendedWord[intendedWordNextIdx])
+          result = [transposition, (intendedWord[intendedWordIdx], intendedWord[intendedWordNextIdx])]
           editFound = True
           break
       
       # Substitutions
       if (finalWordLength == intendedWordLength) and (finalWord[finalWordIdx] != intendedWord[intendedWordIdx]):
-        result = (substitution,intendedWord[intendedWordIdx],finalWord[finalWordIdx])
+        result = [substitution, (finalWord[finalWordIdx],intendedWord[intendedWordIdx])]
         editFound = True
         break
         
       # Insertion
       if (finalWordLength == intendedWordLength + 1) and (finalWordNextIdx < finalWordLength) and intendedWord[intendedWordIdx] == finalWord[finalWordNextIdx]:
-        result = (insertion,lastIntendedLetter,finalWord[finalWordIdx])
+        result = [insertion, (lastIntendedLetter,finalWord[finalWordIdx])]
         editFound = True
         break
         
   if not editFound and (intendedWordIdx == intendedWordLength) and (finalWordIdx < finalWordLength):
-    result = (insertion,lastIntendedLetter,finalWord[finalWordIdx])
+    result = [insertion, (lastIntendedLetter,finalWord[finalWordIdx])]
     editFound = True
 
   if not editFound and (finalWordIdx == finalWordLength) and (intendedWordIdx < intendedWordLength):
-    result = (deletion,lastIntendedLetter,intendedWord[intendedWordIdx])
+    result = [deletion, (lastIntendedLetter,intendedWord[intendedWordIdx])]
     editFound = True
     
-  return result  
+  return result
+
+def trainNoisyChannel(trainingFile):
+  """
+  Uses a training file to create Edit Distance confusion matrices.
+  Returns a list with the 4 confusion matrix [delMatrix,subMatrix,traMatrix,insMatrix]
+  
+  Each confusionMatrix is a dictionary indexed by a tuple (char1,char2) -> counts
+  Counts are defined using the approach described by Kernighan, Church and Gale in 'A Spelling Correction Program Based On Noisy Channel Model'
+  """
+  delMatrix = collections.defaultdict(lambda: 0)
+  subMatrix = collections.defaultdict(lambda: 0)
+  traMatrix = collections.defaultdict(lambda: 0)
+  insMatrix = collections.defaultdict(lambda: 0)
+  
+  matrices = [delMatrix,subMatrix,traMatrix,insMatrix]
+  
+  with open(trainingFile) as fTraining:
+    for line in fTraining:
+      actualQuery,intendedQuery= line.split('\t',1)
+      
+      actualQuery = actualQuery.split()
+      intendedQuery = intendedQuery.split()
+      noOperation = []
+      
+      # Not considering splits or merges right now
+      if len(actualQuery) == len(intendedQuery):
+        for idx in range(len(actualQuery)):
+          edit1 = findEditOperation(actualQuery[idx],intendedQuery[idx])
+          
+          if edit1 != noOperation:
+            matrix = matrices[edit1[0]]
+            actualCount = matrix[edit1[1]]
+            matrix[edit1[1]] = actualCount + 1
+  
+  return matrices
 
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.4, edit_cutoff = 3):
   '''Test if a candidate is good enough to a word with some heuristics'''
