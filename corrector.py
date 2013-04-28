@@ -3,6 +3,7 @@ from collections import deque
 from itertools import izip,product,islice
 import cPickle as marshal
 from math import exp, log
+from collections import Counter
 import operator
 
 queries_loc = 'data/queries.txt'
@@ -124,7 +125,7 @@ def uniform_cost_edit_distance(r,q,cost=0.1):
   Any single edit using an operator defined in the Damerau-Levenshtein distance
   has uniform probability defined by 'cost'
   
-  Returns P(r|q) = (cost^edit_distance(r,q) * P(q))
+  Returns log( P(r|q) ) where P(r|q) = (cost^edit_distance(r,q) * P(q))
   """
 
   d = edit_distance(r,q)
@@ -132,6 +133,53 @@ def uniform_cost_edit_distance(r,q,cost=0.1):
   log_prob_r_q = d * log(cost) + log_prob_q
     
   return log_prob_r_q
+
+
+def empirical_cost_edit_distance(r,q, delCounter,subCounter,traCounter,insCounter,charCounter,biCharCounter, uniform_cost = 0.1):
+    """
+    Estimates the probability of writing 'r' when meaning 'q'
+    The cost of a single edit in the Damerau-Levenshtein distance is calculated from a noisy chanel model
+    
+    Returns:
+    log (P(r|q))
+    
+    if editDistance(r,q) == 1 then P(r|q) is taken from the empirical noisy model
+    if editDistance(r,q) > 1 then P(r|q) = P_empirical(r|q) * P_uniform(r|q)^(distance-1)
+    
+    """
+
+    d                  = edit_distance(r,q)  
+    editOperation      = findEditOperation(r,q)
+    log_prob_q         = calculate_log_prob(q)
+    confusion_matrices = [delCounter,subCounter,traCounter,insCounter]
+    
+    if d == 0:
+        return log_prob_q  # is this right? Where to use P(r|q) where r==q?
+    else:
+    
+        # editOperation e.g. [0, ('#','s')]  from: actual = un; intended = sun
+        editName      = editOperation[0]
+        editArguments = editOperation[1]
+        
+        # How many such edits were found on the training file for the noisy model
+        numerator = confusion_matrices[editName][editArguments]
+        
+        if editName == 0: # deletion
+            denominator = biCharCounter[editArguments]
+        elif editName == 1: # substitution
+            denominator = charCounter[editArguments[1]]
+        elif editName == 2: # transposition
+            denominator = biCharCounter[editArguments]
+        elif editName == 3: # insertion
+            denominator = charCounter[editArguments[0]]
+        
+        # Add-1 smoothing
+        numberOfCharsInAlphabet = len(charsCounter)
+        prob_r_q = (numerator + 1) / (denominator + numberOfCharsInAlphabet) 
+    
+        log_prob_r_q = log(prob_r_q) + (d-1)*log(uniform_cost) + log_prob_q
+        
+        return log_prob_r_q
 
 def findEditOperation(finalWord,intendedWord):
   """
@@ -210,18 +258,24 @@ def findEditOperation(finalWord,intendedWord):
 
 def trainNoisyChannel(trainingFile):
   """
-  Uses a training file to create Edit Distance confusion matrices.
-  Returns a list with the 4 confusion matrix [delMatrix,subMatrix,traMatrix,insMatrix]
+  Uses a training file to create Edit Distance confusion matrices and uniChar and biChar indexes
+  Returns a list with the 4 confusion matrix and the uniChar and biChar indexes [delMatrix,subMatrix,traMatrix,insMatrix,uniChar,biChar]
   
-  Each confusionMatrix is a dictionary indexed by a tuple (char1,char2) -> counts
-  Counts are defined using the approach described by Kernighan, Church and Gale in 'A Spelling Correction Program Based On Noisy Channel Model'
+  Matrices and indexes are implemented as Counter (char1,char2) -> counts
+  Order of elements in tuple (char1,char2) is defined using the approach described by Kernighan, Church and Gale in 'A Spelling Correction Program Based On Noisy Channel Model'
+  
+  del[(x,y)] = count(xy typed as x)
+  sub[(x,y)] = count(y typed as x)
+  tra[(x,y)] = count(xy typed as yx)
+  ins[(x,y)] = count(x typed as xy)
+  
   """
-  delMatrix = collections.defaultdict(lambda: 0)
-  subMatrix = collections.defaultdict(lambda: 0)
-  traMatrix = collections.defaultdict(lambda: 0)
-  insMatrix = collections.defaultdict(lambda: 0)
+  delCounter = Counter()
+  subCounter = Counter()
+  traCounter = Counter()
+  insCounter = Counter()
   
-  matrices = [delMatrix,subMatrix,traMatrix,insMatrix]
+  matrices = [delCounter,subCounter,traCounter,insCounter]
   
   with open(trainingFile) as fTraining:
     for line in fTraining:
@@ -238,10 +292,39 @@ def trainNoisyChannel(trainingFile):
           
           if edit1 != noOperation:
             matrix = matrices[edit1[0]]
-            actualCount = matrix[edit1[1]]
-            matrix[edit1[1]] = actualCount + 1
+            matrix[edit1[1]] += 1
   
-  return matrices
+  serialize_data(delCounter,"edits_del_counter.mrshl")
+  serialize_data(subCounter,"edits_sub_counter.mrshl")
+  serialize_data(traCounter,"edits_tra_counter.mrshl")
+  serialize_data(insCounter,"edits_ins_counter.mrshl")
+  
+  (charCounter, biCharCounter) = generateNGramsFromNoisyFile(trainingFile)
+  serialize_data(charCounter,"edits_char_counter.mrshl")
+  serialize_data(biCharCounter,"edits_bichar_counter.mrshl")
+  
+  return matrices 
+
+def generateNGramsFromNoisyFile(trainingFile):
+  charCounter   = Counter()
+  biCharCounter = Counter()
+  
+  with open(trainingFile) as fTraining:
+    for line in fTraining:
+      actualQuery,intendedQuery = line.split('\t',1)
+      
+      intendedQueryChars = []
+      intendedQueryChars.extend(intendedQuery.replace(' ','#'))
+      
+      # Count Individual Chars
+      for c in intendedQueryChars:
+        charCounter[c] += 1 
+      
+      # Count Bichars
+      for bichar in izip(intendedQueryChars[:-1], intendedQueryChars[1:]):
+        biCharCounter[bichar] += 1
+        
+  return (charCounter, biCharCounter)        
 
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.2, edit_cutoff = 3):
   '''Test if a candidate is good enough to a word with some heuristics'''
