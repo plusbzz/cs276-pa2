@@ -38,6 +38,90 @@ def read_edit1s():
     edit1s = [ line.rstrip().split('\t') for line in f if line.rstrip() ]
   return edit1s
 
+def scan_edits(trainingFile):
+  """
+  Builds a model for Noisy Channel using edits data from trainingFile argument
+  The Noisy Channel model is represented by
+  - 4 confusion matrices: delMatrix,subMatrix,traMatrix,insMatrix
+  - 2 indexes: uniChar and biChar
+  
+  Confusion matrices and indexes are implemented as Counter (char1,char2) -> counts
+  Order of elements in tuple (char1,char2) is defined using the approach described by Kernighan, Church and Gale in 'A Spelling Correction Program Based On Noisy Channel Model'
+  
+  del[(x,y)] = count(xy typed as x)
+  sub[(x,y)] = count(y typed as x)
+  tra[(x,y)] = count(xy typed as yx)
+  ins[(x,y)] = count(x typed as xy)
+  
+  It writes 6 files to disk:
+ 
+  edits_del_counter.mrshl
+  edits_sub_counter.mrshl
+  edits_tra_counter.mrshl
+  edits_ins_counter.mrshl
+  edits_char_counter.mrshl
+  edits_bichar_counter.mrshl
+  
+  It returns a list with the 4 Confusion matrices and the 2 indexes
+  [delMatrix,subMatrix,traMatrix,insMatrix,uniChar,biChar]
+  
+  """
+  delCounter = Counter()
+  subCounter = Counter()
+  traCounter = Counter()
+  insCounter = Counter()
+  
+  matrices = [delCounter,subCounter,traCounter,insCounter]
+  
+  with open(trainingFile) as fTraining:
+    for line in fTraining:
+      actualQuery,intendedQuery= line.split('\t',1)
+      
+      actualQuery = actualQuery.split()
+      intendedQuery = intendedQuery.split()
+      noOperation = []
+      
+      # Not considering splits or merges right now
+      if len(actualQuery) == len(intendedQuery):
+        for idx in range(len(actualQuery)):
+          edit1 = findEditOperation(actualQuery[idx],intendedQuery[idx])
+          
+          if edit1 != noOperation:
+            matrix = matrices[edit1[0]]
+            matrix[edit1[1]] += 1
+  
+  serialize_data(delCounter,"edits_del_counter.mrshl")
+  serialize_data(subCounter,"edits_sub_counter.mrshl")
+  serialize_data(traCounter,"edits_tra_counter.mrshl")
+  serialize_data(insCounter,"edits_ins_counter.mrshl")
+  
+  ngram_indexes = generateNGramsFromNoisyFile(trainingFile)
+  serialize_data(ngram_indexes[0],"edits_char_counter.mrshl")
+  serialize_data(ngram_indexes[1],"edits_bichar_counter.mrshl")
+  
+  return matrices + ngram_indexes
+
+def generateNGramsFromNoisyFile(trainingFile):
+  charCounter   = Counter()
+  biCharCounter = Counter()
+  
+  with open(trainingFile) as fTraining:
+    for line in fTraining:
+      actualQuery,intendedQuery = line.split('\t',1)
+      
+      intendedQueryChars = []
+      intendedQueryChars.extend(intendedQuery.replace(' ','#'))
+      
+      # Count Individual Chars
+      for c in intendedQueryChars:
+        charCounter[c] += 1 
+      
+      # Count Bichars
+      for bichar in izip(intendedQueryChars[:-1], intendedQueryChars[1:]):
+        biCharCounter[bichar] += 1
+        
+  return [charCounter, biCharCounter]
+
 def calculate_biword_log_prob(biword,total_terms,lam = 0.2, extra = False):
   '''Use interpolation or stupid backoff to calculate biword probability'''
   
@@ -145,3 +229,4 @@ if __name__ == '__main__':
   
   create_ngram_index(u)
   
+  scan_edits(edit1s)
