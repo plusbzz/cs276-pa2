@@ -253,6 +253,7 @@ def is_good_candidate(candidate,word,jaccard_cutoff = 0.2, edit_cutoff = 3):
   if abs(len(candidate) - len(word)) >= edit_cutoff: return False
   
   # Jaccard overlap
+  if len(word) > 10: jaccard_cutoff = max(jaccard_cutoff,0.5)
   if jaccard_coeff(candidate,word) <= jaccard_cutoff: return False
   
   #Edit distance should be <= 2
@@ -260,7 +261,7 @@ def is_good_candidate(candidate,word,jaccard_cutoff = 0.2, edit_cutoff = 3):
   
   return True
 
-def generate_word_candidates_from_ngrams(word,candidates,jaccard_cutoff = 0.4, edit_cutoff = 3):
+def generate_word_candidates_from_ngrams(word,candidates,jaccard_cutoff = 0.2, edit_cutoff = 3):
   '''Generate candidates by concatenating postings lists from shared bigrams or trigrams (depending on length)'''
 
   if len(word) < 10:
@@ -357,7 +358,12 @@ def parse_singleword_query(query):
 
   return generate_word_candidates(query)
 
-def parse_query(query):
+def get_edit_cost_func(method):
+  if method == 'uniform': return uniform_cost_edit_distance
+  if method == 'empirical': return empirical_cost_edit_distance
+  return uniform_cost_edit_distance
+
+def parse_query(query,method='uniform'):
   '''Process a multiword query'''
 
   candidate_list = deque([])
@@ -421,27 +427,40 @@ def read_query_data(queries_loc,gold_loc,google_loc):
   return (queries, gold, google)
 
 if __name__ == '__main__':
-  queries,golds,googles = read_query_data(sys.argv[1],sys.argv[2],sys.argv[3])
-  total = 0
-  correct = 0
-  google_correct = 0
   
-  for query,gold,google in izip(queries,golds,googles):
-    cands = parse_query(query)
-    best_cand = cands[0] if len(cands) > 0 else ""
-
-    if best_cand == gold:
-      result = "Right"
-      correct+=1
-    else:
-      result = "Wrong"
+  if len(sys.argv == 3):
+    method = sys.argv[1]
+    queries_loc = sys.argv[2]
+    with open(queries_loc) as f:
+      queries = [line.rstrip() for line in f]
+    for query in queries:
+      cands = parse_query(query,method)
+      best_cand = cands[0] if len(cands) > 0 else ""
+      print best_cand
+      
+      
+  if len(sys.argv >= 4):
+    queries,golds,googles = read_query_data(sys.argv[1],sys.argv[2],sys.argv[3])
+    total = 0
+    correct = 0
+    google_correct = 0
     
-    if google == gold:
-      google_correct += 1
-    
-    total +=1
-    print >> sys.stderr,query,len(best_cand),len(gold)
-    print "|".join([result,query,best_cand,gold,google])
-
-  print >> sys.stderr, correct,"out of",total,"correct."
-  print >> sys.stderr, google_correct,"out of",total,"correct for google."
+    for query,gold,google in izip(queries,golds,googles):
+      cands = parse_query(query)
+      best_cand = cands[0] if len(cands) > 0 else ""
+  
+      if best_cand == gold:
+        result = "Right"
+        correct+=1
+      else:
+        result = "Wrong"
+      
+      if google == gold:
+        google_correct += 1
+      
+      total +=1
+      print >> sys.stderr,query,len(best_cand),len(gold)
+      print "|".join([result,query,best_cand,gold,google])
+  
+    print >> sys.stderr, correct,"out of",total,"correct."
+    print >> sys.stderr, google_correct,"out of",total,"correct for google."
