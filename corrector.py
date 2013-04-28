@@ -125,7 +125,7 @@ def uniform_cost_edit_distance(r,q,cost=0.1):
   Any single edit using an operator defined in the Damerau-Levenshtein distance
   has uniform probability defined by 'cost'
   
-  Returns P(r|q) = (cost^edit_distance(r,q) * P(q))
+  Returns log( P(r|q) ) where P(r|q) = (cost^edit_distance(r,q) * P(q))
   """
 
   d = edit_distance(r,q)
@@ -133,6 +133,53 @@ def uniform_cost_edit_distance(r,q,cost=0.1):
   log_prob_r_q = d * log(cost) + log_prob_q
     
   return log_prob_r_q
+
+
+def empirical_cost_edit_distance(r,q, delCounter,subCounter,traCounter,insCounter,charCounter,biCharCounter, uniform_cost = 0.1):
+    """
+    Estimates the probability of writing 'r' when meaning 'q'
+    The cost of a single edit in the Damerau-Levenshtein distance is calculated from a noisy chanel model
+    
+    Returns:
+    log (P(r|q))
+    
+    if editDistance(r,q) == 1 then P(r|q) is taken from the empirical noisy model
+    if editDistance(r,q) > 1 then P(r|q) = P_empirical(r|q) * P_uniform(r|q)^(distance-1)
+    
+    """
+
+    d                  = edit_distance(r,q)  
+    editOperation      = findEditOperation(r,q)
+    log_prob_q         = calculate_log_prob(q)
+    confusion_matrices = [delCounter,subCounter,traCounter,insCounter]
+    
+    if d == 0:
+        return log_prob_q  # is this right? Where to use P(r|q) where r==q?
+    else:
+    
+        # editOperation e.g. [0, ('#','s')]  from: actual = un; intended = sun
+        editName      = editOperation[0]
+        editArguments = editOperation[1]
+        
+        # How many such edits were found on the training file for the noisy model
+        numerator = confusion_matrices[editName][editArguments]
+        
+        if editName == 0: # deletion
+            denominator = biCharCounter[editArguments]
+        elif editName == 1: # substitution
+            denominator = charCounter[editArguments[1]]
+        elif editName == 2: # transposition
+            denominator = biCharCounter[editArguments]
+        elif editName == 3: # insertion
+            denominator = charCounter[editArguments[0]]
+        
+        # Add-1 smoothing
+        numberOfCharsInAlphabet = len(charsCounter)
+        prob_r_q = (numerator + 1) / (denominator + numberOfCharsInAlphabet) 
+    
+        log_prob_r_q = log(prob_r_q) + (d-1)*log(uniform_cost) + log_prob_q
+        
+        return log_prob_r_q
 
 def findEditOperation(finalWord,intendedWord):
   """
