@@ -30,6 +30,14 @@ word_index = unserialize_data('word_index.mrshl')
 bigram_index = unserialize_data('bigram_index.mrshl')
 trigram_index = unserialize_data('trigram_index.mrshl')
 
+edits_del_counter = unserialize_data("edits_del_counter.mrshl")
+edits_sub_counter = unserialize_data("edits_sub_counter.mrshl")
+edits_tra_counter = unserialize_data("edits_tra_counter.mrshl")
+edits_ins_counter = unserialize_data("edits_ins_counter.mrshl")
+edits_char_counter = unserialize_data("edits_char_counter.mrshl")
+edits_char_counter = unserialize_data("edits_bichar_counter.mrshl")
+
+
 def sigmoid(z): return 1.0/(1+exp(-z))
 
 def jaccard_coeff(s1,s2):
@@ -135,7 +143,7 @@ def uniform_cost_edit_distance(r,q,cost=0.1):
   return log_prob_r_q
 
 
-def empirical_cost_edit_distance(r,q, delCounter,subCounter,traCounter,insCounter,charCounter,biCharCounter, uniform_cost = 0.1):
+def empirical_cost_edit_distance(r,q,uniform_cost=0.1):
     """
     Estimates the probability of writing 'r' when meaning 'q'
     The cost of a single edit in the Damerau-Levenshtein distance is calculated from a noisy chanel model
@@ -255,76 +263,6 @@ def findEditOperation(finalWord,intendedWord):
     editFound = True
     
   return result
-
-def trainNoisyChannel(trainingFile):
-  """
-  Uses a training file to create Edit Distance confusion matrices and uniChar and biChar indexes
-  Returns a list with the 4 confusion matrix and the uniChar and biChar indexes [delMatrix,subMatrix,traMatrix,insMatrix,uniChar,biChar]
-  
-  Matrices and indexes are implemented as Counter (char1,char2) -> counts
-  Order of elements in tuple (char1,char2) is defined using the approach described by Kernighan, Church and Gale in 'A Spelling Correction Program Based On Noisy Channel Model'
-  
-  del[(x,y)] = count(xy typed as x)
-  sub[(x,y)] = count(y typed as x)
-  tra[(x,y)] = count(xy typed as yx)
-  ins[(x,y)] = count(x typed as xy)
-  
-  """
-  delCounter = Counter()
-  subCounter = Counter()
-  traCounter = Counter()
-  insCounter = Counter()
-  
-  matrices = [delCounter,subCounter,traCounter,insCounter]
-  
-  with open(trainingFile) as fTraining:
-    for line in fTraining:
-      actualQuery,intendedQuery= line.split('\t',1)
-      
-      actualQuery = actualQuery.split()
-      intendedQuery = intendedQuery.split()
-      noOperation = []
-      
-      # Not considering splits or merges right now
-      if len(actualQuery) == len(intendedQuery):
-        for idx in range(len(actualQuery)):
-          edit1 = findEditOperation(actualQuery[idx],intendedQuery[idx])
-          
-          if edit1 != noOperation:
-            matrix = matrices[edit1[0]]
-            matrix[edit1[1]] += 1
-  
-  serialize_data(delCounter,"edits_del_counter.mrshl")
-  serialize_data(subCounter,"edits_sub_counter.mrshl")
-  serialize_data(traCounter,"edits_tra_counter.mrshl")
-  serialize_data(insCounter,"edits_ins_counter.mrshl")
-  
-  (charCounter, biCharCounter) = generateNGramsFromNoisyFile(trainingFile)
-  serialize_data(charCounter,"edits_char_counter.mrshl")
-  serialize_data(biCharCounter,"edits_bichar_counter.mrshl")
-  
-  return matrices 
-
-def generateNGramsFromNoisyFile(trainingFile):
-  charCounter   = Counter()
-  biCharCounter = Counter()
-  
-  with open(trainingFile) as fTraining:
-    for line in fTraining:
-      actualQuery,intendedQuery = line.split('\t',1)
-      
-      intendedQueryChars = []
-      intendedQueryChars.extend(intendedQuery.replace(' ','#'))
-      
-      # Count Individual Chars
-      for c in intendedQueryChars:
-        charCounter[c] += 1 
-      
-      # Count Bichars
-      for bichar in izip(intendedQueryChars[:-1], intendedQueryChars[1:]):
-        biCharCounter[bichar] += 1
-        
-  return (charCounter, biCharCounter)        
 
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.2, edit_cutoff = 3):
   '''Test if a candidate is good enough to a word with some heuristics'''
