@@ -397,12 +397,12 @@ def generate_candidates_with_spaces(word,candidates):
       
   return candidates
 
-def rank_candidates(candidates,word,cost_func,max_c):
+def rank_candidates(candidates,word,max_c):
   '''Rank candidates for a word using cost function and return at most top max_c candidates'''
 
   scored_candidates = {}
   for cand in candidates:
-    scored_candidates[cand] = cost_func(word,cand)
+    scored_candidates[cand] = edit_cost_func(word,cand)
     
   ranked_candidates = sorted(scored_candidates.iteritems(), key=operator.itemgetter(1),reverse=True)
   #print >> sys.stderr, ranked_candidates
@@ -426,7 +426,7 @@ def generate_word_candidates(word, max_c = 100):
   candidates = generate_word_candidates_from_ngrams(word,candidates)
   
   # Ranking of candidates
-  candidates = rank_candidates(candidates,word,uniform_cost_edit_distance,max_c)
+  candidates = rank_candidates(candidates,word,max_c)
   
   return candidates
 
@@ -488,7 +488,7 @@ def parse_query(query,method='uniform'):
   #print >> sys.stderr,final_query_list
   
   candidates =  [" ".join(q) for q in islice(product(*final_query_list),0,max_candidates)]
-  return rank_candidates(candidates,query,uniform_cost_edit_distance,max_candidates)
+  return rank_candidates(candidates,query,max_candidates)
 
 def read_query_data(queries_loc,gold_loc,google_loc):
   """
@@ -510,9 +510,17 @@ def read_query_data(queries_loc,gold_loc,google_loc):
   return (queries, gold, google)
 
 if __name__ == '__main__':
+  global edit_cost_func
+  global biword_prob_func
   
-  if len(sys.argv == 3):
+  edit_cost_func = uniform_cost_edit_distance
+  biword_prob_func = calculate_biword_log_prob
+      
+  if len(sys.argv) == 3:
     method = sys.argv[1]
+    edit_cost_func = get_edit_cost_func(method)
+    if method == 'extra': biword_prob_func = calculate_biword_log_prob_sb # use stupid backoff
+    
     queries_loc = sys.argv[2]
     with open(queries_loc) as f:
       queries = [line.rstrip() for line in f]
@@ -522,12 +530,12 @@ if __name__ == '__main__':
       print best_cand
       
       
-  if len(sys.argv >= 4):
+  if len(sys.argv) >= 4:
     queries,golds,googles = read_query_data(sys.argv[1],sys.argv[2],sys.argv[3])
     total = 0
     correct = 0
     google_correct = 0
-    
+
     for query,gold,google in izip(queries,golds,googles):
       cands = parse_query(query)
       best_cand = cands[0] if len(cands) > 0 else ""
