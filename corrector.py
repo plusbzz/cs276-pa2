@@ -3,6 +3,7 @@ from collections import deque
 from itertools import izip,product,islice
 import cPickle as marshal
 from math import exp, log
+from collections import Counter
 import operator
 
 queries_loc = 'data/queries.txt'
@@ -210,18 +211,24 @@ def findEditOperation(finalWord,intendedWord):
 
 def trainNoisyChannel(trainingFile):
   """
-  Uses a training file to create Edit Distance confusion matrices.
-  Returns a list with the 4 confusion matrix [delMatrix,subMatrix,traMatrix,insMatrix]
+  Uses a training file to create Edit Distance confusion matrices and uniChar and biChar indexes
+  Returns a list with the 4 confusion matrix and the uniChar and biChar indexes [delMatrix,subMatrix,traMatrix,insMatrix,uniChar,biChar]
   
-  Each confusionMatrix is a dictionary indexed by a tuple (char1,char2) -> counts
-  Counts are defined using the approach described by Kernighan, Church and Gale in 'A Spelling Correction Program Based On Noisy Channel Model'
+  Matrices and indexes are implemented as Counter (char1,char2) -> counts
+  Order of elements in tuple (char1,char2) is defined using the approach described by Kernighan, Church and Gale in 'A Spelling Correction Program Based On Noisy Channel Model'
+  
+  del[(x,y)] = count(xy typed as x)
+  sub[(x,y)] = count(y typed as x)
+  tra[(x,y)] = count(xy typed as yx)
+  ins[(x,y)] = count(x typed as xy)
+  
   """
-  delMatrix = collections.defaultdict(lambda: 0)
-  subMatrix = collections.defaultdict(lambda: 0)
-  traMatrix = collections.defaultdict(lambda: 0)
-  insMatrix = collections.defaultdict(lambda: 0)
+  delCounter = Counter()
+  subCounter = Counter()
+  traCounter = Counter()
+  insCounter = Counter()
   
-  matrices = [delMatrix,subMatrix,traMatrix,insMatrix]
+  matrices = [delCounter,subCounter,traCounter,insCounter]
   
   with open(trainingFile) as fTraining:
     for line in fTraining:
@@ -238,10 +245,39 @@ def trainNoisyChannel(trainingFile):
           
           if edit1 != noOperation:
             matrix = matrices[edit1[0]]
-            actualCount = matrix[edit1[1]]
-            matrix[edit1[1]] = actualCount + 1
+            matrix[edit1[1]] += 1
   
-  return matrices
+  serialize_data(delCounter,"edits_del_counter.mrshl")
+  serialize_data(subCounter,"edits_sub_counter.mrshl")
+  serialize_data(traCounter,"edits_tra_counter.mrshl")
+  serialize_data(insCounter,"edits_ins_counter.mrshl")
+  
+  (charCounter, biCharCounter) = generateNGramsFromNoisyFile(trainingFile)
+  serialize_data(charCounter,"edits_char_counter.mrshl")
+  serialize_data(biCharCounter,"edits_bichar_counter.mrshl")
+  
+  return matrices 
+
+def generateNGramsFromNoisyFile(trainingFile):
+  charCounter   = Counter()
+  biCharCounter = Counter()
+  
+  with open(trainingFile) as fTraining:
+    for line in fTraining:
+      actualQuery,intendedQuery = line.split('\t',1)
+      
+      intendedQueryChars = []
+      intendedQueryChars.extend(intendedQuery.replace(' ','#'))
+      
+      # Count Individual Chars
+      for c in intendedQueryChars:
+        charCounter[c] += 1 
+      
+      # Count Bichars
+      for bichar in izip(intendedQueryChars[:-1], intendedQueryChars[1:]):
+        biCharCounter[bichar] += 1
+        
+  return (charCounter, biCharCounter)        
 
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.2, edit_cutoff = 3):
   '''Test if a candidate is good enough to a word with some heuristics'''
