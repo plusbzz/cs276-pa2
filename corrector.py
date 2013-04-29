@@ -118,51 +118,48 @@ def uniform_cost_edit_distance(r,q,cost=0.1):
 
 
 def empirical_cost_edit_distance(r,q,uniform_cost=0.1):
-    """
-    Estimates the probability of writing 'r' when meaning 'q'
-    The cost of a single edit in the Damerau-Levenshtein distance is calculated from a noisy chanel model
-    
-    Returns:
-    log (P(r|q))
-    
-    if editDistance(r,q) == 1 then P(r|q) is taken from the empirical noisy model
-    if editDistance(r,q) > 1 then P(r|q) = P_empirical(r|q) * P_uniform(r|q)^(distance-1)
-    
-    """
+  """
+  Estimates the probability of writing 'r' when meaning 'q'
+  The cost of a single edit in the Damerau-Levenshtein distance is calculated from a noisy chanel model
+  
+  Returns:
+  log (P(r|q))
+  
+  if editDistance(r,q) == 1 then P(r|q) is taken from the empirical noisy model
+  if editDistance(r,q) > 1 then P(r|q) = P_empirical(r|q) * P_uniform(r|q)^(distance-1)
+  
+  """
 
-    d                  = edit_distance(r,q)  
-    editOperation      = findEditOperation(r,q)
-    log_prob_q         = calculate_log_prob(q)
-    confusion_matrices = [edits_del_counter,edits_sub_counter,edits_tra_counter,edits_ins_counter]
+  d                  = edit_distance(r,q)  
+  editOperation      = findEditOperation(r,q)
+  log_prob_q         = calculate_log_prob(q)
+  confusion_matrices = [edits_del_counter,edits_sub_counter,edits_tra_counter,edits_ins_counter]
+  
+  if d == 0:
+    return log_prob_q  # is this right? Where to use P(r|q) where r==q?
+  elif len(editOperation) > 0:
+    # editOperation e.g. [0, ('#','s')]  from: actual = un; intended = sun
+    editName      = editOperation[0]
+    editArguments = editOperation[1]
     
-    if d == 0:
-        return log_prob_q  # is this right? Where to use P(r|q) where r==q?
-    else:
+    # How many such edits were found on the training file for the noisy model
+    numerator = confusion_matrices[editName][editArguments]
     
-        # editOperation e.g. [0, ('#','s')]  from: actual = un; intended = sun
-        editName      = editOperation[0]
-        editArguments = editOperation[1]
-        
-        # How many such edits were found on the training file for the noisy model
-        numerator = confusion_matrices[editName][editArguments]
-        
-        if editName == 0: # deletion
-            denominator = edits_bichar_counter[editArguments]
-        elif editName == 1: # substitution
-            denominator = edits_char_counter[editArguments[1]]
-        elif editName == 2: # transposition
-            denominator = edits_bichar_counter[editArguments]
-        elif editName == 3: # insertion
-            denominator = edits_char_counter[editArguments[0]]
-        
-        # Add-1 smoothing
-        numberOfCharsInAlphabet = len(edits_char_counter)
-        prob_r_q = (numerator + 1) / (denominator + numberOfCharsInAlphabet) 
+    if editName == 0: # deletion
+        denominator = edits_bichar_counter[editArguments]
+    elif editName == 1: # substitution
+        denominator = edits_char_counter[editArguments[1]]
+    elif editName == 2: # transposition
+        denominator = edits_bichar_counter[editArguments]
+    elif editName == 3: # insertion
+        denominator = edits_char_counter[editArguments[0]]
     
-        log_prob_r_q = log(prob_r_q) + (d-1)*log(uniform_cost) + log_prob_q
-        
-        return log_prob_r_q
+    # Add-1 smoothing
+    numberOfCharsInAlphabet = len(edits_char_counter)
+    prob_r_q = float(numerator + 1) / float(denominator + numberOfCharsInAlphabet) 
 
+    log_prob_r_q = log(prob_r_q) + (d-1)*log(uniform_cost) + log_prob_q  #code
+    return log_prob_r_q
 
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.2, edit_cutoff = 3):
   '''Test if a candidate is good enough to a word with some heuristics'''
