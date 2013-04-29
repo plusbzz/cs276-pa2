@@ -7,6 +7,7 @@ from math import log
 from collections import Counter
 import re
 import cPickle as marshal
+from edit_operations import findEditOperation, edit_distance
 
 
   
@@ -229,4 +230,5 @@ if __name__ == '__main__':
   
   create_ngram_index(u)
   
+  print >> sys.stderr, "Calculating empirical edit probabilities"
   scan_edits(edit1s)
