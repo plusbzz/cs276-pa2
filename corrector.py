@@ -103,37 +103,43 @@ def calculate_log_prob(query,lam=0.2):
 
 def uniform_cost_edit_distance(r,q,cost=0.01,p_r_qr=0.9,mu=1.0):
   """
-  Estimates the probability of writing 'r' when meaning 'q'.
+  Estimates the probability P(q|r) where q is a candidate spelling of r
   Any single edit using an operator defined in the Damerau-Levenshtein distance
   has uniform probability defined by 'cost'
   
-  Returns log( P(r|q) ) if r != q where P(r|q) = (cost^edit_distance(r,q) * P(q))
-          log( p_r_qr ) if r == q  
+  Returns log( P(q|r) ) if r != q then P(q|r) = (cost^edit_distance(r,q) * P(q))
+                        if r == q then P(q|r) = p_r_qr * p(q) 
   """
 
-  if r==q: return log(p_r_qr)
-  
-  d = edit_distance(r,q)
   log_prob_q = calculate_log_prob(q)
-  log_prob_r_q = d * log(cost) + mu*log_prob_q
-  return log_prob_r_q
+  
+  if r==q:
+    return log(p_r_qr) + mu*log_prob_q
+  else:
+    d = edit_distance(r,q)
+    return d * log(cost) + mu*log_prob_q
 
 
 def empirical_cost_edit_distance(r,q,uniform_cost=0.1,p_r_qr=0.9):
   """
-  Estimates the probability of writing 'r' when meaning 'q'
+  Estimates the probability P(q|r) where q is a candidate spelling of r
   The cost of a single edit in the Damerau-Levenshtein distance is calculated from a noisy chanel model
 
   if editDistance(r,q) == 1 then P(r|q) is taken from the empirical noisy model
   if editDistance(r,q) > 1 then P(r|q) = P_empirical(r|q) * P_uniform(r|q)^(distance-1)
   
-  Returns log( P(r|q) ) if r != q where P(r|q) = (cost^edit_distance(r,q) * P(q))
-          log( p_r_qr ) if r == q 
+  Returns log( P(q|r) ) if r != q then P(q|r) = cost * P(q))
+                        if r == q then P(q|r) = p_r_qr * p(q)
+                        
+                        if editDistance(r,q) == 1 then cost = P_empirical(r|q)
+                        if editDistance(r,q) > 1  then cost = P_empirical(r|q) * (uniform_cost^(distance -1))
   
   """
   
+  log_prob_q = calculate_log_prob(q)
+
   if r==q:
-    return log(p_r_qr) 
+    return log(p_r_qr) + log_prob_q
   else: 
     # if len(editOperation) > 0:
     d                  = edit_distance(r,q)  
@@ -160,9 +166,9 @@ def empirical_cost_edit_distance(r,q,uniform_cost=0.1,p_r_qr=0.9):
     # Add-1 smoothing
     numberOfCharsInAlphabet = len(edits_char_counter)
     prob_r_q = float(numerator + 1) / float(denominator + numberOfCharsInAlphabet) 
-
-    log_prob_r_q = log(prob_r_q) + (d-1)*log(uniform_cost) + log_prob_q  #code
-    return log_prob_r_q
+    log_prob_q_r = log(prob_r_q) + (d-1)*log(uniform_cost) + log_prob_q
+    
+    return log_prob_q_r
 
 def is_good_candidate(candidate,word,jaccard_cutoff = 0.2, edit_cutoff = 3):
   '''Test if a candidate is good enough to a word with some heuristics'''
