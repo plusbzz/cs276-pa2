@@ -100,44 +100,48 @@ def calculate_log_prob(query,lam=0.2):
     
   if prob == 0: return -100
   return prob
-  
-def uniform_cost_edit_distance(r,q,cost=0.01,mu=1.0):
+
+def uniform_cost_edit_distance(r,q,cost=0.01,p_r_qr=0.9,mu=1.0):
   """
   Estimates the probability of writing 'r' when meaning 'q'.
   Any single edit using an operator defined in the Damerau-Levenshtein distance
   has uniform probability defined by 'cost'
   
-  Returns log( P(r|q) ) where P(r|q) = (cost^edit_distance(r,q) * P(q))
+  Returns log( P(r|q) ) if r != q where P(r|q) = (cost^edit_distance(r,q) * P(q))
+          log( p_r_qr ) if r == q  
   """
 
-  d = edit_distance(r,q)
-  log_prob_q = calculate_log_prob(q)
-  log_prob_r_q = d * log(cost) + mu*log_prob_q
-    
-  return log_prob_r_q
+  if r==q:
+    return log(p_r_qr)
+  else:
+    d = edit_distance(r,q)
+    log_prob_q = calculate_log_prob(q)
+    log_prob_r_q = d * log(cost) + mu*log_prob_q
+    return log_prob_r_q
 
 
-def empirical_cost_edit_distance(r,q,uniform_cost=0.1):
+def empirical_cost_edit_distance(r,q,uniform_cost=0.1,p_r_qr=0.9):
   """
   Estimates the probability of writing 'r' when meaning 'q'
   The cost of a single edit in the Damerau-Levenshtein distance is calculated from a noisy chanel model
-  
-  Returns:
-  log (P(r|q))
-  
+
   if editDistance(r,q) == 1 then P(r|q) is taken from the empirical noisy model
   if editDistance(r,q) > 1 then P(r|q) = P_empirical(r|q) * P_uniform(r|q)^(distance-1)
   
-  """
-
-  d                  = edit_distance(r,q)  
-  editOperation      = findEditOperation(r,q)
-  log_prob_q         = calculate_log_prob(q)
-  confusion_matrices = [edits_del_counter,edits_sub_counter,edits_tra_counter,edits_ins_counter]
+  Returns log( P(r|q) ) if r != q where P(r|q) = (cost^edit_distance(r,q) * P(q))
+          log( p_r_qr ) if r == q 
   
-  if d == 0:
-    return log_prob_q  # is this right? Where to use P(r|q) where r==q?
-  elif len(editOperation) > 0:
+  """
+  
+  if r==q:
+    return log(p_r_qr) 
+  else: 
+    # if len(editOperation) > 0:
+    d                  = edit_distance(r,q)  
+    editOperation      = findEditOperation(r,q)
+    log_prob_q         = calculate_log_prob(q)
+    confusion_matrices = [edits_del_counter,edits_sub_counter,edits_tra_counter,edits_ins_counter]
+    
     # editOperation e.g. [0, ('#','s')]  from: actual = un; intended = sun
     editName      = editOperation[0]
     editArguments = editOperation[1]
@@ -240,8 +244,6 @@ def rank_candidates(candidates,word,max_c):
     scored_candidates[cand] = edit_cost_func(word,cand)
     
   ranked_candidates = sorted(scored_candidates.iteritems(), key=operator.itemgetter(1),reverse=True)
-  #print >> sys.stderr, ranked_candidates
-  
   ranked_candidates = ranked_candidates[:max_c]
   return [c for c,s in ranked_candidates]
     
@@ -252,9 +254,6 @@ def generate_word_candidates(word, max_c = 100):
   # if word is in corpus then it's a candidate
   if word in word_counter:
     candidates.add(word)
-  
-  # TODO: if word is common enough, then should we generate fewer candidates?
-  # TODO: Is there a way to make candidate generation more strict or loose?
   
   # special handling for spaces 
   candidates = generate_candidates_with_spaces(word,candidates)
@@ -320,8 +319,6 @@ def parse_query(query):
       final_query_list.append(e2[1])
   final_query_list.append(candidate_list.popleft()[1])  
   
-  #print >> sys.stderr,final_query_list
-  
   candidates =  [" ".join(q) for q in islice(product(*final_query_list),0,max_candidates)]
   return rank_candidates(candidates,query,max_candidates)
 
@@ -364,7 +361,7 @@ if __name__ == '__main__':
     for query in queries:
       cands = parse_query(query)
       best_cand = cands[0] if len(cands) > 0 else ""
-      print best_cand
+      #print best_cand
       
       
   if len(sys.argv) >= 4:
@@ -388,7 +385,7 @@ if __name__ == '__main__':
       
       total +=1
       print >> sys.stderr,query,len(best_cand),len(gold)
-      print "|".join([result,query,best_cand,gold,google])
+      #print "|".join([result,query,best_cand,gold,google])
   
     print >> sys.stderr, correct,"out of",total,"correct."
     print >> sys.stderr, google_correct,"out of",total,"correct for google."
