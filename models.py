@@ -28,16 +28,6 @@ def serialize_data(data, fname):
   with open(fname, 'wb') as f:
     marshal.dump(data, f)
  
-def read_edit1s():
-  """
-  Returns the edit1s data
-  It's a list of tuples, structured as [ .. , (misspelled query, correct query), .. ]
-  """
-  edit1s = []
-  with gzip.open(edit1s_loc) as f:
-    # the .rstrip() is needed to remove the \n that is stupidly included in the line
-    edit1s = [ line.rstrip().split('\t') for line in f if line.rstrip() ]
-  return edit1s
 
 def scan_edits(trainingFile):
   """
@@ -127,12 +117,12 @@ def calculate_biword_log_prob(biword,total_terms,lam = 0.2, extra = False):
   '''Use interpolation or stupid backoff to calculate biword probability'''
   
   w2,w1 = biword
-  if extra:
+  if extra: # use stupid backoff
     if biword in word_counter:
       return log(biword_counter[biword]) - log(word_counter[w1]) # bigram probability
     else:
       return log(0.4) + log(word_counter[w2]) - log(total_terms) # alpha = 0.4
-  else:
+  else: # use interpolation
     return log(lam*word_counter[w2]/total_terms + (1.0-lam)*biword_counter[biword]/word_counter[w1])  
 
 def scan_corpus(training_corpus_loc, extra = False):
@@ -207,7 +197,6 @@ def create_ngram_index(word_dict):
           
     counter_u += 1
     
-  print >>sys.stderr,[word_index[i]  for i in bigram_index['th']]
   # Save kgram index using marshal
   print >> sys.stderr, "Serializing character ngram index"
   serialize_data(word_index,"word_index.mrshl")
@@ -225,10 +214,6 @@ if __name__ == '__main__':
     corpus_dir,edit1s = sys.argv[1:]
     
   u,b = scan_corpus(corpus_dir, extra)
-  print  >> sys.stderr,u['the']
-  print  >> sys.stderr,b[('people','the')]
-  
   create_ngram_index(u)
-  
   print >> sys.stderr, "Calculating empirical edit probabilities"
   scan_edits(edit1s)

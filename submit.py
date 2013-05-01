@@ -179,7 +179,7 @@ def ensure_dir(d):
         
 def getFiles(tempoutfile):
     pathq = 'http://www.stanford.edu/~shuihu/spelling_correction';
-    filenames = ['queries.txt', 'google.txt', 'gold.txt']    
+    filenames = ['queries.txt']    
 
     ensure_dir(tempoutfile+'/test');
     
@@ -213,7 +213,6 @@ def output(partIdx):
   stats = {}
   stats['USERIDS']= peopleStr  
   stats['TIMESUBMITTED'] = str(datetime.datetime.now());
-  stats['gold'] = open(tempoutfile + '/test/gold.txt').read().splitlines()
   
   if partIdx == 0:
       print 'Running Uniform Edit Model (this might take a while)'
@@ -221,7 +220,7 @@ def output(partIdx):
       inp = inp.strip().lower()
       if inp == 'y' or inp == 'yes':
           print 'Calling ./buildmodels.sh (this might take a while)'
-          retcode = subprocess.check_call(['./buildmodels.sh', 'data/corpus/', 'data/edit1s.txt.gz'])
+          retcode = subprocess.check_call(['./buildmodels.sh', 'data/corpus/', 'data/edit1s.txt'])
       print 'Calling ./runcorrector.sh (this might take a while)'
       start = time()
       res = subprocess.check_output(['./runcorrector.sh', 'uniform', tempoutfile + '/test/queries.txt'])
@@ -234,7 +233,7 @@ def output(partIdx):
     inp = inp.strip().lower()
     if inp == 'y' or inp == 'yes':
       print 'Calling ./buildmodels.sh (this might take a while)'
-      retcode = subprocess.check_call( ['./buildmodels.sh', 'data/corpus/', 'data/edit1s.txt.gz'] )
+      retcode = subprocess.check_call( ['./buildmodels.sh', 'data/corpus/', 'data/edit1s.txt'] )
     print 'Calling ./runcorrector.sh (this might take a while)'
     start = time()
     res = subprocess.check_output(['./runcorrector.sh', 'empirical',  tempoutfile + '/test/queries.txt'])
@@ -252,7 +251,7 @@ def output(partIdx):
     inp = inp.strip().lower()
     if inp == 'y' or inp == 'yes':
       print 'Calling ./buildmodels.sh (this might take a while)'
-      retcode = subprocess.check_call( ['./buildmodels.sh', 'extra', 'data/corpus/', 'data/edit1s.txt.gz'] )
+      retcode = subprocess.check_call( ['./buildmodels.sh', 'extra', 'data/corpus/', 'data/edit1s.txt'] )
     print 'Calling ./runcorrector.sh (this might take a while)'
     start = time()
     res = subprocess.check_output(['./runcorrector.sh', 'extra',  tempoutfile + '/test/queries.txt'])
