@@ -101,43 +101,46 @@ def calculate_log_prob(query,lam=0.2):
   if prob == 0: return -100
   return prob
   
-def uniform_cost_edit_distance(r,q,cost=0.1):
+def uniform_cost_edit_distance(r,q,cost=0.1,p_r_qr=0.9):
   """
   Estimates the probability of writing 'r' when meaning 'q'.
   Any single edit using an operator defined in the Damerau-Levenshtein distance
   has uniform probability defined by 'cost'
   
-  Returns log( P(r|q) ) where P(r|q) = (cost^edit_distance(r,q) * P(q))
+  Returns log( P(r|q) ) if r != q where P(r|q) = (cost^edit_distance(r,q) * P(q))
+          log( p_r_qr ) if r == q  
   """
+  if r==q:
+    return log(p_r_qr)
+  else:
+    d = edit_distance(r,q)
+    log_prob_q = calculate_log_prob(q)
+    log_prob_r_q = d * log(cost) + log_prob_q
+    return log_prob_r_q
 
-  d = edit_distance(r,q)
-  log_prob_q = calculate_log_prob(q)
-  log_prob_r_q = d * log(cost) + log_prob_q
-    
-  return log_prob_r_q
 
-
-def empirical_cost_edit_distance(r,q,uniform_cost=0.1):
+def empirical_cost_edit_distance(r,q,uniform_cost=0.1,p_r_qr=0.9):
   """
   Estimates the probability of writing 'r' when meaning 'q'
   The cost of a single edit in the Damerau-Levenshtein distance is calculated from a noisy chanel model
-  
-  Returns:
-  log (P(r|q))
-  
+
   if editDistance(r,q) == 1 then P(r|q) is taken from the empirical noisy model
   if editDistance(r,q) > 1 then P(r|q) = P_empirical(r|q) * P_uniform(r|q)^(distance-1)
   
-  """
-
-  d                  = edit_distance(r,q)  
-  editOperation      = findEditOperation(r,q)
-  log_prob_q         = calculate_log_prob(q)
-  confusion_matrices = [edits_del_counter,edits_sub_counter,edits_tra_counter,edits_ins_counter]
+  Returns log( P(r|q) ) if r != q where P(r|q) = (cost^edit_distance(r,q) * P(q))
+          log( p_r_qr ) if r == q 
   
-  if d == 0:
-    return log_prob_q  # is this right? Where to use P(r|q) where r==q?
-  elif len(editOperation) > 0:
+  """
+  
+  if r==q:
+    return log(p_r_qr) 
+  else: 
+    # if len(editOperation) > 0:
+    d                  = edit_distance(r,q)  
+    editOperation      = findEditOperation(r,q)
+    log_prob_q         = calculate_log_prob(q)
+    confusion_matrices = [edits_del_counter,edits_sub_counter,edits_tra_counter,edits_ins_counter]
+    
     # editOperation e.g. [0, ('#','s')]  from: actual = un; intended = sun
     editName      = editOperation[0]
     editArguments = editOperation[1]
