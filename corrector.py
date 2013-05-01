@@ -243,8 +243,6 @@ def rank_candidates(candidates,word,max_c):
     scored_candidates[cand] = edit_cost_func(word,cand)
     
   ranked_candidates = sorted(scored_candidates.iteritems(), key=operator.itemgetter(1),reverse=True)
-  #print >> sys.stderr, ranked_candidates
-  
   ranked_candidates = ranked_candidates[:max_c]
   return [c for c,s in ranked_candidates]
     
@@ -255,9 +253,6 @@ def generate_word_candidates(word, max_c = 100):
   # if word is in corpus then it's a candidate
   if word in word_counter:
     candidates.add(word)
-  
-  # TODO: if word is common enough, then should we generate fewer candidates?
-  # TODO: Is there a way to make candidate generation more strict or loose?
   
   # special handling for spaces 
   candidates = generate_candidates_with_spaces(word,candidates)
@@ -323,8 +318,6 @@ def parse_query(query):
       final_query_list.append(e2[1])
   final_query_list.append(candidate_list.popleft()[1])  
   
-  #print >> sys.stderr,final_query_list
-  
   candidates =  [" ".join(q) for q in islice(product(*final_query_list),0,max_candidates)]
   return rank_candidates(candidates,query,max_candidates)
 
@@ -367,7 +360,7 @@ if __name__ == '__main__':
     for query in queries:
       cands = parse_query(query)
       best_cand = cands[0] if len(cands) > 0 else ""
-      print best_cand
+      #print best_cand
       
       
   if len(sys.argv) >= 4:
@@ -391,7 +384,7 @@ if __name__ == '__main__':
       
       total +=1
       print >> sys.stderr,query,len(best_cand),len(gold)
-      print "|".join([result,query,best_cand,gold,google])
+      #print "|".join([result,query,best_cand,gold,google])
   
     print >> sys.stderr, correct,"out of",total,"correct."
     print >> sys.stderr, google_correct,"out of",total,"correct for google."
