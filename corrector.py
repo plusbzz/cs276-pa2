@@ -111,13 +111,12 @@ def uniform_cost_edit_distance(r,q,cost=0.01,p_r_qr=0.9,mu=1.0):
           log( p_r_qr ) if r == q  
   """
 
-  if r==q:
-    return log(p_r_qr)
-  else:
-    d = edit_distance(r,q)
-    log_prob_q = calculate_log_prob(q)
-    log_prob_r_q = d * log(cost) + mu*log_prob_q
-    return log_prob_r_q
+  if r==q: return log(p_r_qr)
+  
+  d = edit_distance(r,q)
+  log_prob_q = calculate_log_prob(q)
+  log_prob_r_q = d * log(cost) + mu*log_prob_q
+  return log_prob_r_q
 
 
 def empirical_cost_edit_distance(r,q,uniform_cost=0.1,p_r_qr=0.9):
@@ -361,7 +360,7 @@ if __name__ == '__main__':
     for query in queries:
       cands = parse_query(query)
       best_cand = cands[0] if len(cands) > 0 else ""
-      #print best_cand
+      print best_cand
       
       
   if len(sys.argv) >= 4:
