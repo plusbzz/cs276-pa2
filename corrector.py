@@ -101,20 +101,23 @@ def calculate_log_prob(query,lam=0.2):
   if prob == 0: return -100
   return prob
   
-def uniform_cost_edit_distance(r,q,cost=0.1):
+def uniform_cost_edit_distance(r,q,cost=0.01,p_r_qr=0.95,mu=1.0):
   """
-  Estimates the probability of writing 'r' when meaning 'q'.
+  Estimates the probability P(q|r) where q is a candidate spelling of r
   Any single edit using an operator defined in the Damerau-Levenshtein distance
   has uniform probability defined by 'cost'
   
-  Returns log( P(r|q) ) where P(r|q) = (cost^edit_distance(r,q) * P(q))
+  Returns log( P(q|r) ) if r != q then P(q|r) = (cost^edit_distance(r,q) * P(q))
+                        if r == q then P(q|r) = p_r_qr * p(q) 
   """
 
-  d = edit_distance(r,q)
   log_prob_q = calculate_log_prob(q)
-  log_prob_r_q = d * log(cost) + log_prob_q
-    
-  return log_prob_r_q
+  
+  if r==q:
+    return log(p_r_qr) + mu*log_prob_q
+  else:
+    d = edit_distance(r,q)
+    return d * log(cost) + mu*log_prob_q
 
 
 def empirical_cost_edit_distance(r,q,uniform_cost=0.1):
