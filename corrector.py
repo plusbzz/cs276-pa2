@@ -129,28 +129,28 @@ def empirical_cost_edit_distance(r,q,uniform_cost=0.1,p_r_qr=0.9):
   if editDistance(r,q) > 1 then P(r|q) = P_empirical(r|q) * P_uniform(r|q)^(distance-1)
   
   Returns log( P(q|r) ) if r != q then P(q|r) = cost * P(q))
-                        if r == q then P(q|r) = p_r_qr * p(q)
+                        if r == q then P(q|r) = p_r_qr * P(q)
                         
                         if editDistance(r,q) == 1 then cost = P_empirical(r|q)
                         if editDistance(r,q) > 1  then cost = P_empirical(r|q) * (uniform_cost^(distance -1))
   
   """
   
-  log_prob_q = calculate_log_prob(q)
+  log_prob_q    = calculate_log_prob(q)
+  d             = edit_distance(r,q)
+  editOperation = findEditOperation(r,q)
 
-  if r==q:
+  if d==0 or len(editOperation)==0:
     return log(p_r_qr) + log_prob_q
   else: 
-    # if len(editOperation) > 0:
-    d                  = edit_distance(r,q)  
-    editOperation      = findEditOperation(r,q)
+    
     log_prob_q         = calculate_log_prob(q)
     confusion_matrices = [edits_del_counter,edits_sub_counter,edits_tra_counter,edits_ins_counter]
     
     # editOperation e.g. [0, ('#','s')]  from: actual = un; intended = sun
     editName      = editOperation[0]
     editArguments = editOperation[1]
-    
+
     # How many such edits were found on the training file for the noisy model
     numerator = confusion_matrices[editName][editArguments]
     
