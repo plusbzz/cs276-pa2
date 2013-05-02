@@ -21,7 +21,7 @@ def findEditOperation(finalWord,intendedWord):
   result = []
   
   if edit_distance(finalWord,intendedWord) != 1:
-    return result
+      return result
 
   editFound = False  
   lastIntendedLetter="#" 
