@@ -120,7 +120,7 @@ def uniform_cost_edit_distance(r,q,cost=0.001,p_r_qr=0.95,mu=1.0):
     return d * log(cost) + mu*log_prob_q
 
 
-def empirical_cost_edit_distance(r,q,uniform_cost=0.01,p_r_qr=0.95,mu=1.0):
+def empirical_cost_edit_distance(r,q,uniform_cost=0.1,p_r_qr=0.95,mu=1.0):
   """
   Estimates the probability P(q|r) where q is a candidate spelling of r
   The cost of a single edit in the Damerau-Levenshtein distance is calculated from a noisy chanel model
@@ -141,7 +141,7 @@ def empirical_cost_edit_distance(r,q,uniform_cost=0.01,p_r_qr=0.95,mu=1.0):
   editOperation = findEditOperation(r,q)
 
   if d==0 or len(editOperation)==0:
-    return log(p_r_qr) + log_prob_q
+    return log(p_r_qr) + mu*log_prob_q
   else: 
     
     log_prob_q         = calculate_log_prob(q)
