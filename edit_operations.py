@@ -20,8 +20,8 @@ def findEditOperation(finalWord,intendedWord):
   
   result = []
   
-  if edit_distance(finalWord,intendedWord) != 1:
-      return result
+  if edit_distance(finalWord,intendedWord) > 2:
+    return result
 
   editFound = False  
   lastIntendedLetter="#" 
@@ -52,18 +52,19 @@ def findEditOperation(finalWord,intendedWord):
           result = [transposition, (intendedWord[intendedWordIdx], intendedWord[intendedWordNextIdx])]
           editFound = True
           break
-      
-      # Substitutions
-      if (finalWordLength == intendedWordLength) and (finalWord[finalWordIdx] != intendedWord[intendedWordIdx]):
-        result = [substitution, (finalWord[finalWordIdx],intendedWord[intendedWordIdx])]
-        editFound = True
-        break
         
       # Insertion
       if (finalWordLength == intendedWordLength + 1) and (finalWordNextIdx < finalWordLength) and intendedWord[intendedWordIdx] == finalWord[finalWordNextIdx]:
         result = [insertion, (lastIntendedLetter,finalWord[finalWordIdx])]
         editFound = True
         break
+    
+      # Substitutions
+      #if (finalWordLength == intendedWordLength) and (finalWord[finalWordIdx] != intendedWord[intendedWordIdx]):
+      if (finalWord[finalWordIdx] != intendedWord[intendedWordIdx]):
+        result = [substitution, (finalWord[finalWordIdx],intendedWord[intendedWordIdx])]
+        editFound = True
+        break    
         
   if not editFound and (intendedWordIdx == intendedWordLength) and (finalWordIdx < finalWordLength):
     result = [insertion, (lastIntendedLetter,finalWord[finalWordIdx])]
@@ -74,6 +75,7 @@ def findEditOperation(finalWord,intendedWord):
     editFound = True
     
   return result
+
 
 def edit_distance(a,b,cutoff=sys.maxint):
   '''Calculate edit distance between two strings'''

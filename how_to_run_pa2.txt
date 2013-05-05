@@ -1,0 +1,5 @@
+How to execute pa2
+
+First run: python models.py data/corpus data/edit1s.txt
+Then: python corrector.py empirical data/queries.txt
+

@@ -390,7 +390,7 @@ if __name__ == '__main__':
       
       total +=1
       print >> sys.stderr,query,len(best_cand),len(gold)
-      #print "|".join([result,query,best_cand,gold,google])
+      print "|".join([result,query,best_cand,gold,google])
   
     print >> sys.stderr, correct,"out of",total,"correct."
     print >> sys.stderr, google_correct,"out of",total,"correct for google."
